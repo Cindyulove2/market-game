@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Market Game — Group</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .group-header {
+      text-align: center;
+      padding: 20px 16px;
+    }
+    .group-icon {
+      font-size: 3rem;
+      display: block;
+      margin-bottom: 4px;
+    }
+    .group-name {
+      font-size: 1.6rem;
+      font-weight: 900;
+    }
+    .group-role {
+      font-size: 1rem;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+    .waiting-msg {
+      text-align: center;
+      font-size: 1.3rem;
+      color: var(--text-dim);
+      padding: 60px 20px;
+    }
+    .waiting-msg .spinner {
+      display: inline-block;
+      width: 24px;
+      height: 24px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-right: 10px;
+      vertical-align: middle;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .portfolio-bar {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      justify-content: center;
+      padding: 12px 16px;
+      background: var(--surface);
+      border-radius: 10px;
+      margin-bottom: 16px;
+    }
+    .portfolio-item {
+      text-align: center;
+    }
+    .portfolio-item .label {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+    .portfolio-item .value {
+      font-size: 1.2rem;
+      font-weight: 900;
+      font-variant-numeric: tabular-nums;
+    }
+    .order-form-wrap {
+      max-width: 500px;
+      margin: 0 auto;
+    }
+    .mode-toggle {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .mode-btn {
+      flex: 1;
+      padding: 12px 8px;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+      color: var(--text);
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+    }
+    .mode-btn:hover { border-color: var(--accent); }
+    .mode-btn.active { border-color: var(--accent); background: rgba(59,130,246,0.15); color: var(--accent); }
+    .emotion-extra-row {
+      background: rgba(245,158,11,0.1);
+      border: 1px solid var(--orange);
+      border-radius: 10px;
+      padding: 12px 16px;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .emotion-extra-row .label-text {
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+    .emotion-toggle {
+      display: flex;
+      gap: 6px;
+    }
+    .emotion-toggle button {
+      padding: 6px 16px;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--text);
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .emotion-toggle button.active-yes {
+      border-color: var(--green);
+      background: rgba(34,197,94,0.15);
+      color: var(--green);
+    }
+    .emotion-toggle button.active-no {
+      border-color: var(--red);
+      background: rgba(239,68,68,0.15);
+      color: var(--red);
+    }
+    .mm-side {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+    .mm-side-title {
+      font-weight: 700;
+      font-size: 1rem;
+      margin-bottom: 10px;
+    }
+    .mm-side-title.buy { color: var(--green); }
+    .mm-side-title.sell { color: var(--red); }
+    .mm-row {
+      display: flex;
+      gap: 10px;
+    }
+    .mm-row .form-group { flex: 1; }
+    .submitted-card {
+      text-align: center;
+      padding: 30px 20px;
+    }
+    .submitted-card .checkmark {
+      font-size: 3rem;
+      display: block;
+      margin-bottom: 10px;
+      color: var(--green);
+    }
+    .submitted-card .summary {
+      font-size: 1rem;
+      color: var(--text-dim);
+      margin-top: 12px;
+      line-height: 1.7;
+    }
+    .frozen-banner {
+      background: rgba(239,68,68,0.12);
+      border: 2px solid var(--red);
+      border-radius: 12px;
+      text-align: center;
+      padding: 30px 20px;
+      margin: 20px 0;
+    }
+    .frozen-banner .icon { font-size: 2.5rem; display: block; margin-bottom: 8px; }
+    .frozen-banner .title { font-size: 1.2rem; font-weight: 900; color: var(--red); }
+    .frozen-banner .detail { color: var(--text-dim); margin-top: 6px; }
+    .validation-error {
+      color: var(--red);
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-top: 4px;
+      min-height: 20px;
+    }
+    .follow-trend-reveal {
+      max-width: 500px;
+      margin: 0 auto;
+    }
+    .direction-reveal-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: var(--surface2);
+      border-radius: 10px;
+      margin-bottom: 8px;
+    }
+    .direction-reveal-row .group-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+    }
+    .direction-badge {
+      padding: 4px 14px;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+    .direction-badge.buy { background: rgba(34,197,94,0.15); color: var(--green); }
+    .direction-badge.sell { background: rgba(239,68,68,0.15); color: var(--red); }
+    .direction-badge.hold { background: rgba(245,158,11,0.15); color: var(--orange); }
+    .result-trade-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 14px;
+      background: var(--surface2);
+      border-radius: 8px;
+      margin-bottom: 6px;
+    }
+    .leaderboard-highlight {
+      border: 2px solid var(--accent);
+      background: rgba(59,130,246,0.08);
+    }
+    .final-ranking {
+      text-align: center;
+      padding: 30px 20px;
+    }
+    .final-ranking .rank-number {
+      font-size: 3rem;
+      font-weight: 900;
+      color: var(--orange);
+    }
+    .final-ranking .rank-label {
+      font-size: 1rem;
+      color: var(--text-dim);
+    }
+    .final-ranking .total-assets {
+      font-size: 2rem;
+      font-weight: 900;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="app">
+    <!-- Header always visible -->
+    <div class="header" id="groupHeader" style="justify-content:center; flex-direction:column; gap:4px;">
+      <div class="group-icon" id="headerIcon"></div>
+      <h1 id="headerName"></h1>
+      <div class="group-role" id="headerRole"></div>
+      <div style="display:flex;gap:12px;margin-top:6px;">
+        <a href="roles.html" style="color:var(--accent);font-size:0.85rem;text-decoration:none;">📖 Group Guide</a>
+        <a href="#" id="historyLink" style="color:var(--accent);font-size:0.85rem;text-decoration:none;">📋 Decision History</a>
+      </div>
+    </div>
+
+    <!-- Main content area — swapped by phase -->
+    <div id="content" style="margin-top:16px;"></div>
+  </div>
+
+  <script src="js/game.js"></script>
+  <script src="js/store.js"></script>
+  <script>
+  (function() {
+    // ─── Parse group ID ───
+    const params = new URLSearchParams(window.location.search);
+    const groupId = parseInt(params.get('id'), 10);
+    if (!groupId || groupId < 1 || groupId > 5) {
+      document.getElementById('content').innerHTML =
+        '<div class="waiting-msg">Invalid group ID. Use ?id=1 through ?id=5</div>';
+      return;
+    }
+
+    const role = ROLES[groupId];
+    const groupKey = 'group' + groupId;
+
+    // ─── Header ───
+    document.getElementById('headerIcon').textContent = role.icon;
+    document.getElementById('headerName').textContent = 'Group ' + groupId;
+    document.getElementById('headerRole').textContent = role.name;
+    document.getElementById('historyLink').href = 'history.html?id=' + groupId;
+    document.title = 'Group ' + groupId + ' — ' + role.name;
+
+    // ─── State ───
+    let submitted = false;
+    let followTrendLocked = false;
+    let countdownInterval = null;
+    let followTrendInterval = null;
+    let lastRenderedPhase = null;
+    let lastRenderedRound = null;
+    let lastRenderedSubPhase = null;
+    let forceNextRender = false;
+
+    // ─── Render dispatcher ───
+    function render(state) {
+      var phase = state.phase;
+      var round = state.currentRound;
+      var subPhase = state.revealSubPhase;
+
+      // Reset submitted flag when round or phase changes backward
+      if (phase !== 'ordering' && phase !== 'reveal') {
+        submitted = false;
+      }
+      if (phase === 'ordering' && (lastRenderedPhase !== 'ordering' || lastRenderedRound !== round)) {
+        submitted = false;
+      }
+      if (phase === 'reveal' && subPhase === 'followTrend' && lastRenderedPhase !== 'reveal') {
+        followTrendLocked = false;
+      }
+
+      // Check if this group already submitted an order this round
+      var existingOrder = state.orders && state.orders[groupKey];
+      if (phase === 'ordering' && existingOrder) {
+        submitted = true;
+      }
+
+      // Allow forced re-renders (e.g. after submit) to bypass skip logic
+      if (!forceNextRender) {
+        // During ordering phase, only update timer to preserve form inputs
+        if (phase === 'ordering' && lastRenderedPhase === 'ordering' && lastRenderedRound === round) {
+          var timerEl = document.getElementById('timerDisplay');
+          if (timerEl) {
+            var s = state.timerSeconds || 0;
+            var min = Math.floor(s / 60);
+            var sec = s % 60;
+            timerEl.textContent = min + ':' + (sec < 10 ? '0' : '') + sec;
+            if (s <= 10) { timerEl.classList.add('warning'); } else { timerEl.classList.remove('warning'); }
+            return;
+          }
+        }
+
+        // Skip re-render during follow-trend phase to preserve the update form
+        if (phase === 'reveal' && subPhase === 'followTrend' && lastRenderedPhase === 'reveal' && lastRenderedSubPhase === 'followTrend' && !followTrendLocked) {
+          // But still update the timer if present
+          var ftEl = document.getElementById('ftTimer');
+          if (ftEl && state.followTrendEnd) {
+            var rem = Math.max(0, Math.ceil((state.followTrendEnd - Date.now()) / 1000));
+            ftEl.textContent = '0:' + (rem < 10 ? '0' : '') + rem;
+            if (rem <= 3) { ftEl.classList.add('warning'); } else { ftEl.classList.remove('warning'); }
+          }
+          return;
+        }
+      }
+      forceNextRender = false;
+
+      lastRenderedPhase = phase;
+      lastRenderedRound = round;
+      lastRenderedSubPhase = subPhase;
+
+      clearInterval(countdownInterval);
+      countdownInterval = null;
+      clearInterval(followTrendInterval);
+      followTrendInterval = null;
+
+      switch (phase) {
+        case 'waiting': renderWaiting(state); break;
+        case 'signal': renderSignal(state); break;
+        case 'ordering': renderOrdering(state); break;
+        case 'reveal': renderReveal(state); break;
+        case 'results': renderResults(state); break;
+        default: renderWaiting(state);
+      }
+    }
+
+    // ─── Phase: waiting ───
+    function renderWaiting(state) {
+      document.getElementById('content').innerHTML =
+        '<div class="waiting-msg"><span class="spinner"></span> Waiting for game to start...</div>';
+    }
+
+    // ─── Phase: signal ───
+    function renderSignal(state) {
+      var rd = ROUNDS[state.currentRound - 1];
+      var pf = state.portfolios[groupKey];
+      var html = '';
+      html += '<div class="phase-banner phase-signal">Round ' + state.currentRound + ' / ' + (state.totalRounds || 5) + '</div>';
+      html += buildEventCard(rd);
+      html += buildReferenceTable(rd);
+      html += buildPortfolioBar(pf, state.currentPrice);
+      html += '<div class="waiting-msg" style="padding:30px 20px;">Ready to order — waiting for tutor to open ordering...</div>';
+      document.getElementById('content').innerHTML = html;
+    }
+
+    // ─── Phase: ordering ───
+    function renderOrdering(state) {
+      var rd = ROUNDS[state.currentRound - 1];
+      var pf = state.portfolios[groupKey];
+
+      // Frozen check
+      if (pf.frozen) {
+        renderFrozen(state);
+        return;
+      }
+
+      if (submitted) {
+        renderSubmitted(state);
+        return;
+      }
+
+      var html = '';
+      html += '<div class="phase-banner phase-ordering">ORDERING — Round ' + state.currentRound + '</div>';
+      html += buildTimer(state);
+      html += buildEventCard(rd);
+      html += buildReferenceTable(rd);
+      html += buildPortfolioBar(pf, state.currentPrice);
+      html += '<div class="order-form-wrap">';
+      html += buildOrderForm(state, rd, pf);
+      html += '</div>';
+      document.getElementById('content').innerHTML = html;
+
+      startCountdown(state);
+      attachFormHandlers(state, rd, pf);
+    }
+
+    // ─── Phase: reveal ───
+    function renderReveal(state) {
+      var subPhase = state.revealSubPhase;
+
+      // Retail follow-trend window
+      if (role.id === 'retail' && subPhase === 'followTrend') {
+        renderFollowTrend(state);
+        return;
+      }
+
+      // Non-retail groups during follow-trend see a waiting message
+      if (subPhase === 'followTrend') {
+        document.getElementById('content').innerHTML =
+          '<div class="phase-banner phase-reveal">REVEAL PHASE</div>' +
+          '<div class="waiting-msg"><span class="spinner"></span> Retail group is reviewing trends...</div>';
+        return;
+      }
+
+      // Results sub-phase — show round results
+      if (subPhase === 'results') {
+        renderResults(state);
+        return;
+      }
+
+      // Default fallback
+      document.getElementById('content').innerHTML =
+        '<div class="phase-banner phase-reveal">REVEAL PHASE</div>' +
+        '<div class="waiting-msg"><span class="spinner"></span> Waiting for results...</div>';
+    }
+
+    // ─── Phase: results ───
+    function renderResults(state) {
+      var isFinal = state.currentRound >= (state.totalRounds || 5) && state.phase === 'results';
+      var rd = ROUNDS[state.currentRound - 1];
+      var pf = state.portfolios[groupKey];
+      var mr = state.matchingResults;
+      var price = mr.clearingPrice || mr.referencePrice || state.currentPrice;
+
+      var html = '';
+
+      if (isFinal) {
+        html += '<div class="phase-banner phase-results">FINAL RESULTS</div>';
+      } else {
+        html += '<div class="phase-banner phase-results">Round ' + state.currentRound + ' Results</div>';
+      }
+
+      // Clearing price
+      html += '<div class="card">';
+      html += '<div class="card-title">Clearing Price</div>';
+      if (mr.noTrade) {
+        html += '<div class="crisis-banner" style="animation:none;font-size:1rem;">LIQUIDITY CRISIS — No trades matched this round</div>';
+        html += '<div class="text-center text-dim mt-1">Reference price (indicative only): ' + (mr.referencePrice || '-') + '</div>';
+      } else {
+        html += '<div class="text-center text-2xl fw-black">' + price + '</div>';
+        var pStar = rd.pStar;
+        var diff = price - pStar;
+        var pct = pStar > 0 ? Math.round(Math.abs(diff) / pStar * 100) : 0;
+        var diffClass = Math.abs(pct) <= 10 ? 'text-green' : (Math.abs(pct) <= 20 ? 'text-orange' : 'text-red');
+        html += '<div class="text-center ' + diffClass + ' mt-1">P* = ' + pStar + ' (' + (diff >= 0 ? '+' : '') + diff.toFixed(1) + ', ' + pct + '% ' + (diff >= 0 ? 'above' : 'below') + ')</div>';
+      }
+      html += '</div>';
+
+      // My trades
+      var myOrder = state.orders[groupKey];
+      var trades = mr.trades || [];
+      var myTrades = trades.filter(function(t) { return t.buyer === groupId || t.seller === groupId; });
+
+      html += '<div class="card">';
+      html += '<div class="card-title">Your Trades</div>';
+      if (myOrder && myOrder.direction === 'hold' && myOrder.role !== 'marketmaker') {
+        html += '<div class="text-center text-dim">You chose to HOLD this round.</div>';
+      } else if (myTrades.length === 0) {
+        html += '<div class="text-center text-dim">No trades executed for your group.</div>';
+      } else {
+        myTrades.forEach(function(t) {
+          var isBuyer = t.buyer === groupId;
+          html += '<div class="result-trade-row">';
+          html += '<span class="fw-bold ' + (isBuyer ? 'text-green' : 'text-red') + '">' + (isBuyer ? 'BOUGHT' : 'SOLD') + '</span>';
+          html += '<span>' + t.qty + ' shares @ ' + t.price + '</span>';
+          html += '</div>';
+        });
+      }
+      html += '</div>';
+
+      // Portfolio
+      html += '<div class="card">';
+      html += '<div class="card-title">Your Portfolio</div>';
+      html += buildPortfolioBar(pf, price);
+      html += '</div>';
+
+      // Leaderboard
+      html += buildLeaderboard(state, price, isFinal);
+
+      // Final results extras
+      if (isFinal) {
+        html += buildFinalRanking(state, price);
+      }
+
+      document.getElementById('content').innerHTML = html;
+    }
+
+    // ─── Frozen group ───
+    function renderFrozen(state) {
+      var html = '';
+      html += '<div class="phase-banner phase-ordering">ORDERING — Round ' + state.currentRound + '</div>';
+      html += '<div class="frozen-banner">';
+      html += '<span class="icon">&#x26A0;&#xFE0F;</span>';
+      html += '<div class="title">Your group is frozen</div>';
+      html += '<div class="detail">Total assets below 200. Auto-submitting HOLD.</div>';
+      html += '</div>';
+      document.getElementById('content').innerHTML = html;
+
+      // Auto-submit hold if not already submitted
+      if (!submitted) {
+        submitted = true;
+        var order = {
+          groupId: groupId,
+          role: role.id,
+          direction: 'hold',
+          price: 0,
+          quantity: 0,
+          retailMode: null,
+          emotionExtra: false,
+          followTrendActive: false,
+          bidPrice: 0,
+          bidQty: 0,
+          askPrice: 0,
+          askQty: 0,
+          isShort: false,
+          isCover: false,
+          impliedR: null,
+          submittedAt: Date.now()
+        };
+        store.mergeState('orders.' + groupKey, order);
+      }
+    }
+
+    // ─── Submitted confirmation ───
+    function renderSubmitted(state) {
+      var myOrder = state.orders[groupKey];
+      var html = '';
+      html += '<div class="phase-banner phase-ordering">ORDERING — Round ' + state.currentRound + '</div>';
+      html += buildTimer(state);
+      html += '<div class="card submitted-card">';
+      html += '<span class="checkmark">&#x2705;</span>';
+      html += '<div class="text-lg fw-bold">Order Submitted</div>';
+      if (myOrder) {
+        html += '<div class="summary">';
+        if (myOrder.role === 'marketmaker') {
+          html += 'BID: ' + myOrder.bidQty + ' @ ' + myOrder.bidPrice + '<br>';
+          html += 'ASK: ' + myOrder.askQty + ' @ ' + myOrder.askPrice;
+        } else {
+          html += myOrder.direction.toUpperCase();
+          if (myOrder.direction !== 'hold') {
+            html += ' ' + myOrder.quantity + ' shares @ ' + myOrder.price;
+            if (myOrder.emotionExtra) html += ' (+1 emotion share)';
+          }
+          if (myOrder.isShort) html += '<br>(Opening Short)';
+          if (myOrder.isCover) html += '<br>(Covering Short)';
+          if (myOrder.retailMode) html += '<br>Mode: ' + (myOrder.retailMode === 'emotion' ? 'Emotion' : 'Follow Trend');
+        }
+        html += '</div>';
+      }
+      html += '<div class="mt-2 text-dim"><span class="spinner"></span> Waiting for other groups...</div>';
+      html += '</div>';
+      document.getElementById('content').innerHTML = html;
+      startCountdown(state);
+    }
+
+    // ─── Follow Trend (retail reveal) ───
+    var ftSelectedDir = null; // module-level so event delegation can access it
+
+    function renderFollowTrend(state) {
+      if (followTrendLocked) {
+        document.getElementById('content').innerHTML =
+          '<div class="phase-banner phase-reveal">FOLLOW TREND — ORDER UPDATED</div>' +
+          '<div class="card submitted-card" style="margin-top:20px;">' +
+          '<span class="checkmark">&#x2705;</span>' +
+          '<div class="text-lg fw-bold">Updated Order Submitted</div>' +
+          '<div class="mt-2 text-dim"><span class="spinner"></span> Waiting for matching results...</div>' +
+          '</div>';
+        return;
+      }
+
+      var rd = ROUNDS[state.currentRound - 1];
+      var pf = state.portfolios[groupKey];
+      var orders = state.orders;
+      var myOrder = orders[groupKey];
+
+      // Only show follow trend UI if retail chose followTrend mode
+      if (!myOrder || myOrder.retailMode !== 'followtrend') {
+        document.getElementById('content').innerHTML =
+          '<div class="phase-banner phase-reveal">REVEAL PHASE</div>' +
+          '<div class="waiting-msg"><span class="spinner"></span> Waiting for results...</div>';
+        return;
+      }
+
+      // Initialize ftSelectedDir
+      ftSelectedDir = myOrder.direction || 'hold';
+
+      var html = '';
+      html += '<div class="phase-banner phase-reveal">FOLLOW TREND — See Other Groups</div>';
+
+      // Countdown
+      var ftEnd = state.followTrendEnd || (Date.now() + 30000);
+      html += '<div class="timer" id="ftTimer" style="margin-bottom:16px;">0:30</div>';
+
+      // Info panel
+      html += '<div class="follow-trend-reveal">';
+      html += '<div class="card" style="border-color:var(--purple);background:rgba(168,85,247,0.08);">';
+      html += '<div class="card-title" style="color:var(--purple);">Other Groups\' Directions</div>';
+      html += '<div class="text-dim mb-2" style="font-size:0.85rem;">Only directions are shown — not prices or quantities. You may update your order below before time runs out. Using Follow Trend costs 10% of your profit this round.</div>';
+      for (var g = 1; g <= 5; g++) {
+        if (g === groupId) continue;
+        var otherRole = ROLES[g];
+        var otherOrder = orders['group' + g];
+        var dir = 'HOLD';
+        var dirClass = 'hold';
+        if (otherOrder) {
+          if (otherOrder.role === 'marketmaker') {
+            dir = 'BID+ASK';
+            dirClass = 'buy';
+          } else {
+            dir = (otherOrder.direction || 'hold').toUpperCase();
+            dirClass = otherOrder.direction || 'hold';
+          }
+        }
+        html += '<div class="direction-reveal-row">';
+        html += '<div class="group-info"><span>' + otherRole.icon + '</span> ' + otherRole.name + '</div>';
+        html += '<span class="direction-badge ' + dirClass + '">' + dir + '</span>';
+        html += '</div>';
+      }
+      html += '</div>';
+
+      // Update form
+      html += '<div class="card mt-2">';
+      html += '<div class="card-title">Update Your Order</div>';
+      html += '<div class="btn-group mb-2">';
+      html += '<button class="dir-btn ft-dir-btn' + (ftSelectedDir === 'buy' ? ' active-buy' : '') + '" data-ftdir="buy">BUY</button>';
+      html += '<button class="dir-btn ft-dir-btn' + (ftSelectedDir === 'sell' ? ' active-sell' : '') + '" data-ftdir="sell">SELL</button>';
+      html += '<button class="dir-btn ft-dir-btn' + (ftSelectedDir === 'hold' ? ' active-hold' : '') + '" data-ftdir="hold">HOLD</button>';
+      html += '</div>';
+      html += '<div class="form-group"><label>Price</label><input type="number" id="ftPrice" min="1" step="0.1" value="' + (myOrder.price || '') + '"></div>';
+      html += '<div class="form-group"><label>Quantity (max 5)</label><input type="number" id="ftQty" min="0" max="5" step="1" value="' + (myOrder.quantity || '') + '"></div>';
+      html += '<div class="validation-error" id="ftError"></div>';
+      html += '<button class="btn btn-primary btn-lg" style="width:100%;" id="ftSubmit">UPDATE ORDER</button>';
+      html += '</div>';
+      html += '</div>';
+
+      document.getElementById('content').innerHTML = html;
+
+      // Countdown — reads live state for pause support
+      var remaining = Math.max(0, Math.ceil((ftEnd - Date.now()) / 1000));
+      updateFtTimer(remaining);
+      followTrendInterval = setInterval(function() {
+        var curState = store.getState();
+        // If follow-trend ended (admin finished or skipped)
+        if (!curState.followTrendActive && curState.revealSubPhase !== 'followTrend') {
+          clearInterval(followTrendInterval);
+          followTrendLocked = true;
+          forceNextRender = true;
+          render(curState);
+          return;
+        }
+        // Respect pause
+        if (curState.followTrendPaused) {
+          updateFtTimer('--');
+          return;
+        }
+        var curEnd = curState.followTrendEnd || ftEnd;
+        remaining = Math.max(0, Math.ceil((curEnd - Date.now()) / 1000));
+        updateFtTimer(remaining);
+        if (remaining <= 0) {
+          clearInterval(followTrendInterval);
+          followTrendLocked = true;
+          forceNextRender = true;
+          render(store.getState());
+        }
+      }, 250);
+
+      function updateFtTimer(s) {
+        var el = document.getElementById('ftTimer');
+        if (el) {
+          if (s === '--') {
+            el.textContent = 'PAUSED';
+            el.classList.add('warning');
+          } else {
+            var mins = Math.floor(s / 60);
+            var secs = s % 60;
+            el.textContent = mins + ':' + (secs < 10 ? '0' : '') + secs;
+            if (s <= 5) { el.classList.add('warning'); } else { el.classList.remove('warning'); }
+          }
+        }
+      }
+    }
+
+    // ─── Event delegation for follow-trend form ───
+    // Using delegation so handlers survive any DOM updates
+    document.getElementById('content').addEventListener('click', function(e) {
+      // Direction button clicks
+      var dirBtn = e.target.closest('.ft-dir-btn');
+      if (dirBtn && dirBtn.getAttribute('data-ftdir')) {
+        ftSelectedDir = dirBtn.getAttribute('data-ftdir');
+        var allFtBtns = document.querySelectorAll('.ft-dir-btn');
+        allFtBtns.forEach(function(b) {
+          b.className = 'dir-btn ft-dir-btn';
+          if (b.getAttribute('data-ftdir') === ftSelectedDir) {
+            b.classList.add('active-' + ftSelectedDir);
+          }
+        });
+        return;
+      }
+
+      // Submit button click
+      if (e.target.id === 'ftSubmit' || e.target.closest('#ftSubmit')) {
+        e.preventDefault();
+        if (followTrendLocked) return;
+
+        var state = store.getState();
+        var rd = ROUNDS[state.currentRound - 1];
+        var pf = state.portfolios[groupKey];
+        var myOrder = state.orders[groupKey];
+        if (!myOrder) return;
+
+        var price = parseFloat(document.getElementById('ftPrice').value);
+        var qty = parseInt(document.getElementById('ftQty').value, 10);
+        var errEl = document.getElementById('ftError');
+        if (!errEl) return;
+        errEl.textContent = '';
+
+        var dir = ftSelectedDir || 'hold';
+
+        if (dir !== 'hold') {
+          if (!price || price <= 0) { errEl.textContent = 'Enter a valid price.'; return; }
+          if (!qty || qty <= 0) { errEl.textContent = 'Enter a valid quantity.'; return; }
+          if (qty > 5) { errEl.textContent = 'Maximum 5 shares per round.'; return; }
+          if (dir === 'buy') {
+            var maxQty = Math.floor(pf.cash / price);
+            if (qty > maxQty) { errEl.textContent = 'Cannot afford — max ' + maxQty + ' shares.'; return; }
+          }
+          if (dir === 'sell' && qty > pf.shares) {
+            errEl.textContent = 'Cannot sell more than ' + pf.shares + ' shares.';
+            return;
+          }
+        }
+
+        var updatedOrder = Object.assign({}, myOrder, {
+          direction: dir,
+          price: dir === 'hold' ? 0 : price,
+          quantity: dir === 'hold' ? 0 : qty,
+          followTrendActive: true,
+          submittedAt: Date.now()
+        });
+        updatedOrder.impliedR = computeImpliedR(updatedOrder, rd.D);
+        store.mergeState('orders.' + groupKey, updatedOrder);
+        followTrendLocked = true;
+        forceNextRender = true;
+        render(store.getState());
+      }
+    });
+
+    // ─── Build helpers ───
+
+    function buildTimer(state) {
+      var s = state.timerSeconds || 0;
+      var min = Math.floor(s / 60);
+      var sec = s % 60;
+      var warn = s <= 10 ? ' warning' : '';
+      return '<div class="timer' + warn + '" id="timerDisplay">' + min + ':' + (sec < 10 ? '0' : '') + sec + '</div><div style="height:12px;"></div>';
+    }
+
+    function startCountdown(state) {
+      if (!state.timerRunning) return;
+      countdownInterval = setInterval(function() {
+        var st = store.getState();
+        if (!st.timerRunning || st.phase !== 'ordering') {
+          clearInterval(countdownInterval);
+          return;
+        }
+        var el = document.getElementById('timerDisplay');
+        if (!el) { clearInterval(countdownInterval); return; }
+        var s = st.timerSeconds || 0;
+        var min = Math.floor(s / 60);
+        var sec = s % 60;
+        el.textContent = min + ':' + (sec < 10 ? '0' : '') + sec;
+        if (s <= 10) {
+          el.classList.add('warning');
+        } else {
+          el.classList.remove('warning');
+        }
+      }, 500);
+    }
+
+    function buildEventCard(rd) {
+      var html = '<div class="event-card mb-2">';
+      html += '<div class="d-value">D = ' + rd.D + '</div>';
+      html += '<div class="mt-1">' + rd.event + '</div>';
+      html += '</div>';
+      return html;
+    }
+
+    function buildReferenceTable(rd) {
+      var html = '<div class="card ref-table mb-2">';
+      html += '<div class="card-title">Reference Table — P* = D / r</div>';
+      html += '<table><thead><tr><th>r</th><th>D=4</th><th>D=5</th><th>D=6</th></tr></thead><tbody>';
+      rd.referenceTable.forEach(function(row) {
+        var highlighted = '';
+        if (row['D' + rd.D] !== undefined) {
+          highlighted = ' style="font-weight:900;color:var(--accent);"';
+        }
+        html += '<tr>';
+        html += '<td>' + row.r + '</td>';
+        html += '<td' + (rd.D === 4 ? highlighted : '') + '>' + row.D4 + '</td>';
+        html += '<td' + (rd.D === 5 ? highlighted : '') + '>' + row.D5 + '</td>';
+        html += '<td' + (rd.D === 6 ? highlighted : '') + '>' + row.D6 + '</td>';
+        html += '</tr>';
+      });
+      html += '</tbody></table></div>';
+      return html;
+    }
+
+    function buildPortfolioBar(pf, price) {
+      // Use pf.totalAssets from settlePortfolio (already accounts for credit line, short liability, etc.)
+      var totalAssets = pf.totalAssets != null ? pf.totalAssets : (pf.cash + pf.shares * (price || 0));
+
+      var html = '<div class="portfolio-bar">';
+      var cashLabel = role.id === 'marketmaker' ? 'Cash (incl. credit)' : 'Cash';
+      html += '<div class="portfolio-item"><div class="label">' + cashLabel + '</div><div class="value">' + pf.cash.toFixed(1) + '</div></div>';
+      html += '<div class="portfolio-item"><div class="label">Shares</div><div class="value">' + pf.shares + '</div></div>';
+      if (role.id === 'hedge') {
+        html += '<div class="portfolio-item"><div class="label">Short</div><div class="value text-red">' + pf.shortPosition + '</div></div>';
+      }
+      if (role.id === 'pension') {
+        html += '<div class="portfolio-item"><div class="label">Dividends</div><div class="value text-green">' + (pf.dividendAccumulated || 0).toFixed(1) + '</div></div>';
+      }
+      html += '<div class="portfolio-item"><div class="label">Total Assets</div><div class="value text-accent">' + totalAssets.toFixed(1) + '</div></div>';
+      html += '</div>';
+      return html;
+    }
+
+    function buildOrderForm(state, rd, pf) {
+      if (role.id === 'marketmaker') return buildMarketMakerForm(state, rd, pf);
+      if (role.id === 'retail') return buildRetailForm(state, rd, pf);
+      if (role.id === 'hedge') return buildHedgeForm(state, rd, pf);
+      return buildStandardForm(state, rd, pf);
+    }
+
+    // ─── Standard form (pension, growth) ───
+    function buildStandardForm(state, rd, pf) {
+      var html = '<div class="card">';
+      html += '<div class="card-title">Place Order</div>';
+      html += '<div class="btn-group mb-2">';
+      html += '<button class="dir-btn" data-dir="buy" id="dirBuy">BUY</button>';
+      html += '<button class="dir-btn" data-dir="sell" id="dirSell">SELL</button>';
+      html += '<button class="dir-btn" data-dir="hold" id="dirHold">HOLD</button>';
+      html += '</div>';
+      html += '<div id="priceQtyFields">';
+      html += '<div class="form-group"><label>Price</label><input type="number" id="orderPrice" min="1" step="0.1" placeholder="Enter price"></div>';
+      html += '<div class="form-group"><label>Quantity (max 5)</label><input type="number" id="orderQty" min="1" max="5" step="1" placeholder="Number of shares"></div>';
+      html += '</div>';
+      html += '<div class="validation-error" id="orderError"></div>';
+      html += '<button class="btn btn-primary btn-lg" style="width:100%;margin-top:8px;" id="submitOrder">SUBMIT ORDER</button>';
+      html += '</div>';
+      return html;
+    }
+
+    // ─── Hedge fund form ───
+    function buildHedgeForm(state, rd, pf) {
+      var html = '<div class="card">';
+      html += '<div class="card-title">Place Order</div>';
+
+      // Order type toggle
+      html += '<div class="form-group"><label>Order Type</label></div>';
+      html += '<div class="mode-toggle" id="hedgeTypeToggle">';
+      html += '<button class="mode-btn active" data-type="normal" id="typeNormal">Normal</button>';
+      html += '<button class="mode-btn" data-type="short" id="typeShort">Open Short</button>';
+      if (pf.shortPosition > 0) {
+        html += '<button class="mode-btn" data-type="cover" id="typeCover">Cover Short</button>';
+      }
+      html += '</div>';
+
+      html += '<div class="btn-group mb-2" id="dirGroup">';
+      html += '<button class="dir-btn" data-dir="buy" id="dirBuy">BUY</button>';
+      html += '<button class="dir-btn" data-dir="sell" id="dirSell">SELL</button>';
+      html += '<button class="dir-btn" data-dir="hold" id="dirHold">HOLD</button>';
+      html += '</div>';
+      html += '<div id="priceQtyFields">';
+      html += '<div class="form-group"><label>Price</label><input type="number" id="orderPrice" min="1" step="0.1" placeholder="Enter price"></div>';
+      html += '<div class="form-group"><label>Quantity (max 5)</label><input type="number" id="orderQty" min="1" max="5" step="1" placeholder="Number of shares"></div>';
+      html += '</div>';
+      html += '<div class="validation-error" id="orderError"></div>';
+      html += '<button class="btn btn-primary btn-lg" style="width:100%;margin-top:8px;" id="submitOrder">SUBMIT ORDER</button>';
+      html += '</div>';
+      return html;
+    }
+
+    // ─── Retail form ───
+    function buildRetailForm(state, rd, pf) {
+      var html = '<div class="card">';
+      html += '<div class="card-title">Place Order</div>';
+
+      // Mode selector
+      html += '<div class="form-group"><label>Mode This Round</label></div>';
+      html += '<div class="mode-toggle" id="retailModeToggle">';
+      html += '<button class="mode-btn" data-mode="emotion" id="modeEmotion">EMOTION MODE</button>';
+      html += '<button class="mode-btn" data-mode="followtrend" id="modeFollow">FOLLOW TREND<br><span style="font-size:0.75rem;font-weight:400;color:var(--text-dim);">(-10% profit)</span></button>';
+      html += '</div>';
+
+      html += '<div class="btn-group mb-2">';
+      html += '<button class="dir-btn" data-dir="buy" id="dirBuy">BUY</button>';
+      html += '<button class="dir-btn" data-dir="sell" id="dirSell">SELL</button>';
+      html += '<button class="dir-btn" data-dir="hold" id="dirHold">HOLD</button>';
+      html += '</div>';
+      html += '<div id="priceQtyFields">';
+      html += '<div class="form-group"><label>Price</label><input type="number" id="orderPrice" min="1" step="0.1" placeholder="Enter price"></div>';
+      html += '<div class="form-group"><label id="qtyLabel">Quantity (max 5, or 6 with emotion)</label><input type="number" id="orderQty" min="1" max="6" step="1" placeholder="Number of shares"></div>';
+      html += '</div>';
+
+      // Emotion extra share (hidden by default)
+      html += '<div id="emotionExtraWrap" class="hidden">';
+      html += '<div class="emotion-extra-row">';
+      html += '<span class="label-text">Add emotion extra share?</span>';
+      html += '<div class="emotion-toggle">';
+      html += '<button id="emotionYes">YES</button>';
+      html += '<button id="emotionNo" class="active-no">NO</button>';
+      html += '</div></div></div>';
+
+      html += '<div class="validation-error" id="orderError"></div>';
+      html += '<button class="btn btn-primary btn-lg" style="width:100%;margin-top:8px;" id="submitOrder">SUBMIT ORDER</button>';
+      html += '</div>';
+      return html;
+    }
+
+    // ─── Market Maker form ───
+    function buildMarketMakerForm(state, rd, pf) {
+      var html = '<div class="card">';
+      html += '<div class="card-title">Place Order — Both Sides Required</div>';
+
+      html += '<div class="mm-side">';
+      html += '<div class="mm-side-title buy">BID (Buy Side)</div>';
+      html += '<div class="mm-row">';
+      html += '<div class="form-group"><label>Bid Price</label><input type="number" id="bidPrice" min="1" step="0.1" placeholder="Price"></div>';
+      html += '<div class="form-group"><label>Bid Qty</label><input type="number" id="bidQty" min="1" step="1" placeholder="Qty"></div>';
+      html += '</div></div>';
+
+      html += '<div class="mm-side">';
+      html += '<div class="mm-side-title sell">ASK (Sell Side)</div>';
+      html += '<div class="mm-row">';
+      html += '<div class="form-group"><label>Ask Price</label><input type="number" id="askPrice" min="1" step="0.1" placeholder="Price"></div>';
+      html += '<div class="form-group"><label>Ask Qty</label><input type="number" id="askQty" min="1" step="1" placeholder="Qty"></div>';
+      html += '</div></div>';
+
+      html += '<div class="text-dim" style="font-size:0.85rem;margin-bottom:8px;">Ask must be greater than Bid.</div>';
+      html += '<div class="validation-error" id="orderError"></div>';
+      html += '<button class="btn btn-primary btn-lg" style="width:100%;margin-top:8px;" id="submitOrder">SUBMIT ORDER</button>';
+      html += '</div>';
+      return html;
+    }
+
+    // ─── Attach form event handlers ───
+    function attachFormHandlers(state, rd, pf) {
+      if (role.id === 'marketmaker') {
+        attachMarketMakerHandlers(state, rd, pf);
+        return;
+      }
+
+      var selectedDir = null;
+      var selectedHedgeType = 'normal';
+      var selectedRetailMode = null;
+      var emotionExtra = false;
+
+      // Direction buttons
+      var dirBtns = document.querySelectorAll('.dir-btn[data-dir]');
+      dirBtns.forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          selectedDir = this.getAttribute('data-dir');
+          dirBtns.forEach(function(b) {
+            b.className = 'dir-btn';
+            if (b.getAttribute('data-dir') === selectedDir) {
+              b.classList.add('active-' + selectedDir);
+            }
+          });
+
+          var fields = document.getElementById('priceQtyFields');
+          if (selectedDir === 'hold') {
+            fields.style.display = 'none';
+          } else {
+            fields.style.display = 'block';
+          }
+
+          checkEmotionExtra();
+        });
+      });
+
+      // Hedge fund type toggle
+      if (role.id === 'hedge') {
+        var typeBtns = document.querySelectorAll('#hedgeTypeToggle .mode-btn');
+        typeBtns.forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            selectedHedgeType = this.getAttribute('data-type');
+            typeBtns.forEach(function(b) { b.classList.remove('active'); });
+            this.classList.add('active');
+
+            // Lock direction for short
+            if (selectedHedgeType === 'short') {
+              selectedDir = 'sell';
+              dirBtns.forEach(function(b) {
+                b.className = 'dir-btn';
+                if (b.getAttribute('data-dir') === 'sell') b.classList.add('active-sell');
+              });
+              document.getElementById('dirBuy').disabled = true;
+              document.getElementById('dirHold').disabled = true;
+              document.getElementById('priceQtyFields').style.display = 'block';
+            } else if (selectedHedgeType === 'cover') {
+              selectedDir = 'buy';
+              dirBtns.forEach(function(b) {
+                b.className = 'dir-btn';
+                if (b.getAttribute('data-dir') === 'buy') b.classList.add('active-buy');
+              });
+              document.getElementById('dirSell').disabled = true;
+              document.getElementById('dirHold').disabled = true;
+              document.getElementById('priceQtyFields').style.display = 'block';
+            } else {
+              document.getElementById('dirBuy').disabled = false;
+              document.getElementById('dirSell').disabled = false;
+              document.getElementById('dirHold').disabled = false;
+            }
+          });
+        });
+      }
+
+      // Retail mode toggle
+      if (role.id === 'retail') {
+        var modeBtns = document.querySelectorAll('#retailModeToggle .mode-btn');
+        modeBtns.forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            selectedRetailMode = this.getAttribute('data-mode');
+            modeBtns.forEach(function(b) { b.classList.remove('active'); });
+            this.classList.add('active');
+            checkEmotionExtra();
+          });
+        });
+
+        // Emotion extra toggle buttons
+        var emotionYes = document.getElementById('emotionYes');
+        var emotionNo = document.getElementById('emotionNo');
+        if (emotionYes) {
+          emotionYes.addEventListener('click', function() {
+            emotionExtra = true;
+            emotionYes.className = 'active-yes';
+            emotionNo.className = '';
+            checkEmotionExtra();
+          });
+        }
+        if (emotionNo) {
+          emotionNo.addEventListener('click', function() {
+            emotionExtra = false;
+            emotionNo.className = 'active-no';
+            emotionYes.className = '';
+            checkEmotionExtra();
+          });
+        }
+
+        // Listen for qty/price changes to show emotion extra
+        var priceInput = document.getElementById('orderPrice');
+        var qtyInput = document.getElementById('orderQty');
+        if (priceInput) priceInput.addEventListener('input', checkEmotionExtra);
+        if (qtyInput) qtyInput.addEventListener('input', checkEmotionExtra);
+      }
+
+      function checkEmotionExtra() {
+        if (role.id !== 'retail') return;
+        var wrap = document.getElementById('emotionExtraWrap');
+        if (!wrap) return;
+        if (selectedRetailMode !== 'emotion') {
+          wrap.classList.add('hidden');
+          emotionExtra = false;
+          return;
+        }
+        // Show emotion extra toggle whenever emotion mode is selected
+        wrap.classList.remove('hidden');
+        // Update qty label
+        var qtyLabel = document.getElementById('qtyLabel');
+        if (qtyLabel) {
+          qtyLabel.textContent = emotionExtra ? 'Quantity (max 6 — emotion bonus active)' : 'Quantity (max 5, or 6 with emotion)';
+        }
+      }
+
+      // Submit
+      document.getElementById('submitOrder').addEventListener('click', function() {
+        var errEl = document.getElementById('orderError');
+        errEl.textContent = '';
+
+        if (role.id === 'retail' && !selectedRetailMode) {
+          errEl.textContent = 'Select a mode: Emotion or Follow Trend.';
+          return;
+        }
+
+        if (!selectedDir) {
+          errEl.textContent = 'Select a direction: BUY, SELL, or HOLD.';
+          return;
+        }
+
+        var price = parseFloat(document.getElementById('orderPrice').value) || 0;
+        var qty = parseInt(document.getElementById('orderQty').value, 10) || 0;
+
+        if (selectedDir !== 'hold') {
+          if (price <= 0) { errEl.textContent = 'Enter a valid price greater than 0.'; return; }
+          if (qty <= 0) { errEl.textContent = 'Enter a valid quantity greater than 0.'; return; }
+          var maxShares = (role.id === 'retail' && selectedRetailMode === 'emotion' && emotionExtra) ? 6 : 5;
+          if (qty > maxShares) { errEl.textContent = 'Maximum ' + maxShares + ' shares per round.' + (role.id === 'retail' && selectedRetailMode === 'emotion' ? ' (Emotion mode: enable extra share for 6)' : ''); return; }
+
+          // Buy validation
+          if (selectedDir === 'buy') {
+            var maxBuy = Math.floor(pf.cash / price);
+            if (qty > maxBuy) {
+              errEl.textContent = 'Insufficient cash. Maximum ' + maxBuy + ' shares at price ' + price + '.';
+              return;
+            }
+          }
+
+          // Sell validation (non-hedge or normal hedge)
+          if (selectedDir === 'sell' && !(role.id === 'hedge' && selectedHedgeType === 'short')) {
+            if (qty > pf.shares) {
+              errEl.textContent = 'Cannot sell more than ' + pf.shares + ' shares held.';
+              return;
+            }
+          }
+
+          // Hedge cover validation
+          if (role.id === 'hedge' && selectedHedgeType === 'cover') {
+            if (qty > pf.shortPosition) {
+              errEl.textContent = 'Cannot cover more than ' + pf.shortPosition + ' short shares.';
+              return;
+            }
+          }
+        }
+
+        var order = {
+          groupId: groupId,
+          role: role.id,
+          direction: selectedDir,
+          price: selectedDir === 'hold' ? 0 : price,
+          quantity: selectedDir === 'hold' ? 0 : qty,
+          retailMode: role.id === 'retail' ? selectedRetailMode : null,
+          emotionExtra: (role.id === 'retail' && selectedRetailMode === 'emotion' && emotionExtra) ? true : false,
+          followTrendActive: false,
+          bidPrice: 0,
+          bidQty: 0,
+          askPrice: 0,
+          askQty: 0,
+          isShort: (role.id === 'hedge' && selectedHedgeType === 'short') ? true : false,
+          isCover: (role.id === 'hedge' && selectedHedgeType === 'cover') ? true : false,
+          impliedR: null,
+          submittedAt: Date.now()
+        };
+        order.impliedR = computeImpliedR(order, rd.D);
+        store.mergeState('orders.' + groupKey, order);
+        submitted = true;
+        forceNextRender = true;
+        render(store.getState());
+      });
+    }
+
+    // ─── Market Maker handlers ───
+    function attachMarketMakerHandlers(state, rd, pf) {
+      document.getElementById('submitOrder').addEventListener('click', function() {
+        var errEl = document.getElementById('orderError');
+        errEl.textContent = '';
+
+        var bidPrice = parseFloat(document.getElementById('bidPrice').value) || 0;
+        var bidQty = parseInt(document.getElementById('bidQty').value, 10) || 0;
+        var askPrice = parseFloat(document.getElementById('askPrice').value) || 0;
+        var askQty = parseInt(document.getElementById('askQty').value, 10) || 0;
+
+        if (bidPrice <= 0) { errEl.textContent = 'Enter a valid bid price.'; return; }
+        if (bidQty <= 0) { errEl.textContent = 'Enter a valid bid quantity.'; return; }
+        if (askPrice <= 0) { errEl.textContent = 'Enter a valid ask price.'; return; }
+        if (askQty <= 0) { errEl.textContent = 'Enter a valid ask quantity.'; return; }
+        if (askPrice <= bidPrice) { errEl.textContent = 'Ask price must be greater than bid price.'; return; }
+
+        // Validate bid side affordability
+        var maxBidQty = Math.floor(pf.cash / bidPrice);
+        if (bidQty > maxBidQty) {
+          errEl.textContent = 'Insufficient cash for bid. Max ' + maxBidQty + ' shares at ' + bidPrice + '.';
+          return;
+        }
+
+        var order = {
+          groupId: groupId,
+          role: role.id,
+          direction: 'both',
+          price: 0,
+          quantity: 0,
+          retailMode: null,
+          emotionExtra: false,
+          followTrendActive: false,
+          bidPrice: bidPrice,
+          bidQty: bidQty,
+          askPrice: askPrice,
+          askQty: askQty,
+          isShort: false,
+          isCover: false,
+          impliedR: null,
+          submittedAt: Date.now()
+        };
+        order.impliedR = computeImpliedR(order, rd.D);
+        store.mergeState('orders.' + groupKey, order);
+        submitted = true;
+        forceNextRender = true;
+        render(store.getState());
+      });
+    }
+
+    // ─── Leaderboard ───
+    function buildLeaderboard(state, price, isFinal) {
+      var groups = [];
+      for (var g = 1; g <= 5; g++) {
+        var p = state.portfolios['group' + g];
+        var ta = p.totalAssets;
+        // For final, market maker inventory at 80%
+        if (isFinal && g === 5) {
+          ta = p.cash + p.shares * price * 0.8;
+          if (p.shortPosition > 0 && p.shortCostBasis) {
+            ta += (p.shortCostBasis - price) * p.shortPosition;
+          }
+          ta = Math.round(ta * 10) / 10;
+        }
+        groups.push({ id: g, role: ROLES[g], assets: ta, cash: p.cash, shares: p.shares, frozen: p.frozen });
+      }
+      groups.sort(function(a, b) { return b.assets - a.assets; });
+
+      var html = '<div class="card">';
+      html += '<div class="card-title">Leaderboard</div>';
+      groups.forEach(function(g, idx) {
+        var highlight = g.id === groupId ? ' leaderboard-highlight' : '';
+        html += '<div class="leaderboard-row' + highlight + '">';
+        html += '<div class="leaderboard-rank">' + (idx + 1) + '</div>';
+        html += '<div class="leaderboard-name">' + g.role.icon + ' ' + g.role.name + '</div>';
+        html += '<div class="leaderboard-assets">' + g.assets.toFixed(1) + '</div>';
+        html += '</div>';
+      });
+      html += '</div>';
+      return html;
+    }
+
+    // ─── Final ranking display for this group ───
+    function buildFinalRanking(state, price) {
+      var groups = [];
+      for (var g = 1; g <= 5; g++) {
+        var p = state.portfolios['group' + g];
+        var ta = p.totalAssets;
+        if (g === 5) {
+          ta = p.cash + p.shares * price * 0.8;
+          if (p.shortPosition > 0 && p.shortCostBasis) {
+            ta += (p.shortCostBasis - price) * p.shortPosition;
+          }
+          ta = Math.round(ta * 10) / 10;
+        }
+        groups.push({ id: g, assets: ta });
+      }
+      groups.sort(function(a, b) { return b.assets - a.assets; });
+
+      var myRank = 0;
+      var myAssets = 0;
+      groups.forEach(function(g, idx) {
+        if (g.id === groupId) {
+          myRank = idx + 1;
+          myAssets = g.assets;
+        }
+      });
+
+      var rankSuffix = myRank === 1 ? 'st' : (myRank === 2 ? 'nd' : (myRank === 3 ? 'rd' : 'th'));
+
+      var html = '<div class="card final-ranking">';
+      html += '<div class="rank-label">Your Final Ranking</div>';
+      html += '<div class="rank-number">#' + myRank + '</div>';
+      html += '<div class="rank-label">' + myRank + rankSuffix + ' place out of 5 groups</div>';
+      html += '<div class="total-assets">' + myAssets.toFixed(1) + '</div>';
+      html += '<div class="text-dim">Total Assets</div>';
+      html += '</div>';
+
+      // Special awards
+      if (typeof computeSpecialAwards === 'function') {
+        var awards = computeSpecialAwards(state);
+        var myAwards = awards.filter(function(a) { return a.group === groupId; });
+        if (myAwards.length > 0) {
+          html += '<div class="card">';
+          html += '<div class="card-title">Your Awards</div>';
+          myAwards.forEach(function(a) {
+            html += '<div class="award-card mb-1">';
+            html += '<div class="award-icon">' + a.icon + '</div>';
+            html += '<div class="award-title">' + a.title + '</div>';
+            html += '<div class="award-detail">' + a.detail + '</div>';
+            html += '</div>';
+          });
+          html += '</div>';
+        }
+      }
+
+      return html;
+    }
+
+    // ─── Subscribe and initial render ───
+    store.subscribe(render);
+    render(store.getState());
+
+  })();
+  </script>
+</body>
+</html>

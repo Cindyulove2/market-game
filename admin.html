@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — Market Game</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <style>
+    .admin-layout {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      grid-template-rows: 1fr auto;
+      gap: 16px;
+      padding: 16px;
+      min-height: calc(100vh - 60px);
+    }
+    .left-panel { grid-row: 1 / 3; }
+    .right-panel { grid-row: 1; grid-column: 2; }
+    .bottom-panel { grid-row: 2; grid-column: 2; }
+
+    .phase-indicator {
+      display: inline-block;
+      padding: 4px 14px;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .phase-indicator.waiting { background: var(--surface2); color: var(--text-dim); }
+    .phase-indicator.signal { background: rgba(59,130,246,0.25); color: var(--accent); }
+    .phase-indicator.ordering { background: rgba(34,197,94,0.25); color: var(--green); }
+    .phase-indicator.reveal { background: rgba(168,85,247,0.25); color: var(--purple); }
+    .phase-indicator.results { background: rgba(245,158,11,0.25); color: var(--orange); }
+
+    .control-section { margin-bottom: 20px; }
+    .control-section h3 {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-dim);
+      margin-bottom: 8px;
+    }
+
+    .timer-controls {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .round-progress {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+    .round-dot {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 0.85rem;
+      background: var(--surface2);
+      color: var(--text-dim);
+      border: 2px solid transparent;
+    }
+    .round-dot.active { border-color: var(--accent); color: var(--accent); background: rgba(59,130,246,0.15); }
+    .round-dot.done { background: var(--green); color: white; }
+
+    .orders-table { font-size: 0.9rem; }
+    .orders-table td { padding: 8px 10px; }
+    .orders-table th { padding: 8px 10px; }
+
+    .all-submitted {
+      background: rgba(34,197,94,0.12);
+      border: 1px solid var(--green);
+      border-radius: 8px;
+      padding: 8px 14px;
+      text-align: center;
+      color: var(--green);
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .portfolio-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+    }
+    .portfolio-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      text-align: center;
+    }
+    .portfolio-card .group-icon { font-size: 1.6rem; }
+    .portfolio-card .group-name { font-size: 0.75rem; color: var(--text-dim); margin-bottom: 6px; }
+    .portfolio-card .total-assets { font-size: 1.3rem; font-weight: 900; font-variant-numeric: tabular-nums; }
+    .portfolio-card .detail-row {
+      display: flex; justify-content: space-between;
+      font-size: 0.78rem; color: var(--text-dim);
+      padding: 2px 0;
+    }
+    .portfolio-card .detail-val { color: var(--text); font-weight: 600; }
+
+    .follow-trend-bar {
+      background: rgba(168,85,247,0.15);
+      border: 1px solid var(--purple);
+      border-radius: 8px;
+      padding: 10px 14px;
+      text-align: center;
+      color: var(--purple);
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    @media (max-width: 900px) {
+      .admin-layout {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto auto;
+      }
+      .left-panel { grid-row: auto; }
+      .right-panel { grid-row: auto; grid-column: auto; }
+      .bottom-panel { grid-row: auto; grid-column: auto; }
+      .portfolio-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Password Gate -->
+<div id="passwordOverlay" class="password-overlay">
+  <div class="password-box">
+    <h2>Admin Access</h2>
+    <p class="text-dim mb-2">Enter tutor password to continue</p>
+    <div id="pwError" class="error hidden">Incorrect password</div>
+    <input type="password" id="pwInput" placeholder="Password" autofocus>
+    <button class="btn btn-primary" style="width:100%" onclick="checkPassword()">Enter</button>
+  </div>
+</div>
+
+<!-- Main Admin Panel -->
+<div id="adminPanel" class="hidden">
+  <div class="header">
+    <h1>Admin Control Panel</h1>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <a href="roles.html" style="color:var(--text-dim);font-size:0.85rem;text-decoration:none;">📖 Guide</a>
+      <a href="history.html" style="color:var(--text-dim);font-size:0.85rem;text-decoration:none;">📋 History</a>
+      <span id="phaseIndicator" class="phase-indicator waiting">WAITING</span>
+      <span class="badge">Round <span id="headerRound">1</span>/<span id="headerTotalRounds">5</span></span>
+    </div>
+  </div>
+
+  <div class="admin-layout">
+    <!-- LEFT PANEL: Game Controls -->
+    <div class="left-panel">
+      <div class="card">
+        <div class="card-title">Game Controls</div>
+
+        <!-- Total Rounds Setting -->
+        <div class="control-section">
+          <h3>Game Length</h3>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <select id="totalRoundsSelect" onchange="updateTotalRounds()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:0.95rem;">
+              <option value="3">3 Rounds</option>
+              <option value="4">4 Rounds</option>
+              <option value="5" selected>5 Rounds</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Round progress dots -->
+        <div class="control-section">
+          <h3>Round Progress</h3>
+          <div class="round-progress" id="roundDots"></div>
+        </div>
+
+        <!-- Timer -->
+        <div class="control-section">
+          <h3>Timer</h3>
+          <div class="timer" id="timerDisplay">1:00</div>
+          <div class="timer-controls">
+            <button class="btn btn-sm btn-green" id="btnTimerStart" onclick="startTimer()">Start</button>
+            <button class="btn btn-sm btn-orange" id="btnTimerPause" onclick="pauseTimer()">Pause</button>
+            <button class="btn btn-sm btn-dim" id="btnTimerReset" onclick="resetTimer()">Reset</button>
+          </div>
+        </div>
+
+        <!-- Phase Advance Buttons -->
+        <div class="control-section">
+          <h3>Phase Actions</h3>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <button class="btn btn-primary btn-lg" id="btnStartRound" onclick="startRound()">Start Round 1</button>
+            <button class="btn btn-green btn-lg" id="btnOpenOrdering" onclick="openOrdering()" disabled>Open Ordering</button>
+            <button class="btn btn-purple btn-lg" id="btnRunMatching" onclick="handleRunMatching()" disabled>Run Matching</button>
+            <button class="btn btn-primary btn-lg" id="btnNextRound" onclick="nextRound()" disabled>Next Round</button>
+            <button class="btn btn-orange btn-lg" id="btnEndGame" onclick="endGame()" disabled>End Game</button>
+          </div>
+        </div>
+
+        <!-- Follow-trend controls -->
+        <div class="control-section" id="followTrendConfig">
+          <h3>Follow-Trend Window</h3>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <label style="font-size:0.85rem;color:var(--text-dim);white-space:nowrap;">Duration (s):</label>
+            <input type="number" id="ftDurationInput" min="5" max="120" step="5" value="30" style="width:80px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:0.95rem;" onchange="updateFtDuration()">
+          </div>
+        </div>
+        <div class="control-section hidden" id="followTrendSection">
+          <div class="follow-trend-bar">
+            Retail Follow-Trend: <span id="followTrendTimer" style="font-size:1.3rem;font-weight:900;">30</span>s remaining
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-sm btn-orange" id="btnFtPause" onclick="pauseFollowTrend()" style="flex:1;">Pause</button>
+            <button class="btn btn-sm btn-purple" onclick="skipFollowTrend()" style="flex:1;">End Now</button>
+          </div>
+        </div>
+
+        <!-- Reset -->
+        <div class="control-section" style="margin-top:24px;border-top:1px solid var(--border);padding-top:16px;">
+          <button class="btn btn-red btn-sm" onclick="confirmReset()" style="width:100%">Reset Game</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL: Live Order View -->
+    <div class="right-panel">
+      <div class="card" style="height:100%;overflow:auto;">
+        <div class="card-title">Live Orders — Round <span id="ordersRoundLabel">1</span></div>
+        <div id="allSubmittedBanner" class="all-submitted hidden">All 5 groups have submitted!</div>
+        <table class="orders-table">
+          <thead>
+            <tr>
+              <th>Group</th>
+              <th>Direction</th>
+              <th>Price</th>
+              <th>Qty</th>
+              <th>Implied r</th>
+              <th>Details</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="ordersBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- BOTTOM PANEL: Portfolio Overview -->
+    <div class="bottom-panel">
+      <div class="card">
+        <div class="card-title">Portfolio Overview</div>
+        <div class="portfolio-grid" id="portfolioGrid"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/game.js"></script>
+<script src="js/store.js"></script>
+<script>
+// ============================================================
+// Admin Panel — Inline Logic
+// ============================================================
+
+const ADMIN_PASSWORD = 'tutor2024';
+let timerInterval = null;
+let followTrendInterval = null;
+
+// ---- Password Gate ----
+
+function checkPassword() {
+  const input = document.getElementById('pwInput').value;
+  if (input === ADMIN_PASSWORD) {
+    sessionStorage.setItem('admin_auth', 'true');
+    showAdminPanel();
+  } else {
+    document.getElementById('pwError').classList.remove('hidden');
+    document.getElementById('pwInput').value = '';
+    document.getElementById('pwInput').focus();
+  }
+}
+
+document.getElementById('pwInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') checkPassword();
+});
+
+function showAdminPanel() {
+  document.getElementById('passwordOverlay').classList.add('hidden');
+  document.getElementById('adminPanel').classList.remove('hidden');
+  renderAll(store.getState());
+}
+
+// Check session on load
+if (sessionStorage.getItem('admin_auth') === 'true') {
+  showAdminPanel();
+}
+
+// ---- Total Rounds ----
+
+function updateTotalRounds() {
+  const val = parseInt(document.getElementById('totalRoundsSelect').value, 10);
+  if (val >= 3 && val <= 5) {
+    store.setState({ totalRounds: val });
+  }
+}
+
+// ---- Timer Logic ----
+
+function startTimer() {
+  const state = store.getState();
+  if (state.phase !== 'ordering') return;
+  if (timerInterval) clearInterval(timerInterval);
+  store.setState({ timerRunning: true });
+  timerInterval = setInterval(() => {
+    const s = store.getState();
+    if (!s.timerRunning || s.phase !== 'ordering') {
+      clearInterval(timerInterval);
+      timerInterval = null;
+      return;
+    }
+    const next = s.timerSeconds - 1;
+    if (next <= 0) {
+      store.setState({ timerSeconds: 0, timerRunning: false });
+      clearInterval(timerInterval);
+      timerInterval = null;
+    } else {
+      store.setState({ timerSeconds: next });
+    }
+  }, 1000);
+}
+
+function pauseTimer() {
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+  store.setState({ timerRunning: false });
+}
+
+function resetTimer() {
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+  store.setState({ timerSeconds: 60, timerRunning: false });
+}
+
+// ---- Phase Actions ----
+
+function startRound() {
+  const state = store.getState();
+  const round = state.currentRound;
+  const roundData = ROUNDS[round - 1];
+  store.setState({
+    phase: 'signal',
+    orders: { group1: null, group2: null, group3: null, group4: null, group5: null },
+    matchingResults: { trades: [], clearingPrice: null, referencePrice: null, noTrade: false },
+    timerSeconds: 60,
+    timerRunning: false,
+    revealSubPhase: null,
+    followTrendActive: false,
+    followTrendEnd: null,
+    followTrendPaused: false,
+  });
+}
+
+function openOrdering() {
+  const state = store.getState();
+  if (state.phase !== 'signal') return;
+  store.setState({
+    phase: 'ordering',
+    timerSeconds: 60,
+    timerRunning: false,
+  });
+  // Auto-start timer
+  setTimeout(() => startTimer(), 100);
+}
+
+function handleRunMatching() {
+  const state = store.getState();
+  if (state.phase !== 'ordering') return;
+
+  // Stop timer
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+  store.setState({ timerRunning: false });
+
+  // Fill in HOLD for any group that hasn't submitted
+  const orders = { ...state.orders };
+  for (let g = 1; g <= 5; g++) {
+    const key = 'group' + g;
+    if (!orders[key]) {
+      const role = ROLES[g].id;
+      if (role === 'marketmaker') {
+        orders[key] = {
+          groupId: g, role: 'marketmaker', direction: 'hold',
+          bidPrice: 0, bidQty: 0, askPrice: 0, askQty: 0,
+          submittedAt: Date.now(),
+        };
+      } else {
+        orders[key] = {
+          groupId: g, role: role, direction: 'hold',
+          price: 0, quantity: 0,
+          submittedAt: Date.now(),
+        };
+      }
+    }
+  }
+  store.setState({ orders });
+
+  // Check if retail chose follow-trend mode
+  const retailOrder = orders.group3;
+  const retailWantsFollowTrend = retailOrder && retailOrder.retailMode === 'followtrend';
+
+  if (retailWantsFollowTrend) {
+    // Enter follow-trend sub-phase — set phase to 'reveal' so group.html can detect it
+    const ftEnd = Date.now() + (store.getState().followTrendDuration || 30) * 1000;
+    store.setState({
+      phase: 'reveal',
+      revealSubPhase: 'followTrend',
+      followTrendActive: true,
+      followTrendEnd: ftEnd,
+    });
+    startFollowTrendCountdown(ftEnd);
+  } else {
+    executeMatching();
+  }
+}
+
+let ftPausedRemaining = 0; // seconds remaining when paused
+
+function updateFtDuration() {
+  const val = parseInt(document.getElementById('ftDurationInput').value, 10) || 30;
+  store.setState({ followTrendDuration: Math.max(5, Math.min(120, val)) });
+}
+
+function startFollowTrendCountdown(endTime) {
+  document.getElementById('followTrendSection').classList.remove('hidden');
+  document.getElementById('btnFtPause').textContent = 'Pause';
+  ftPausedRemaining = 0;
+  if (followTrendInterval) clearInterval(followTrendInterval);
+
+  followTrendInterval = setInterval(() => {
+    const state = store.getState();
+    if (state.followTrendPaused) return; // paused — don't count down
+
+    const remaining = Math.max(0, Math.ceil((state.followTrendEnd - Date.now()) / 1000));
+    document.getElementById('followTrendTimer').textContent = remaining;
+    // Broadcast updated end time so group.html can read it
+    if (remaining <= 0) {
+      clearInterval(followTrendInterval);
+      followTrendInterval = null;
+      finishFollowTrend();
+    }
+  }, 250);
+}
+
+function pauseFollowTrend() {
+  const state = store.getState();
+  if (state.followTrendPaused) {
+    // Resume — set a new end time based on remaining seconds
+    const newEnd = Date.now() + ftPausedRemaining * 1000;
+    store.setState({ followTrendPaused: false, followTrendEnd: newEnd });
+    document.getElementById('btnFtPause').textContent = 'Pause';
+  } else {
+    // Pause — save remaining seconds
+    ftPausedRemaining = Math.max(1, Math.ceil((state.followTrendEnd - Date.now()) / 1000));
+    store.setState({ followTrendPaused: true });
+    document.getElementById('btnFtPause').textContent = 'Resume';
+  }
+}
+
+function skipFollowTrend() {
+  if (followTrendInterval) {
+    clearInterval(followTrendInterval);
+    followTrendInterval = null;
+  }
+  finishFollowTrend();
+}
+
+function finishFollowTrend() {
+  document.getElementById('followTrendSection').classList.add('hidden');
+  store.setState({
+    followTrendActive: false,
+    followTrendEnd: null,
+    followTrendPaused: false,
+    revealSubPhase: null,
+  });
+  executeMatching();
+}
+
+function executeMatching() {
+  const state = store.getState();
+  const round = state.currentRound;
+  const roundData = ROUNDS[round - 1];
+  const D = roundData.D;
+  const previousPrice = state.currentPrice;
+
+  // Run matching
+  const matchResult = runMatching(state.orders, state.currentPrice, D);
+
+  const newPrice = matchResult.clearingPrice || matchResult.referencePrice;
+
+  // Settle each portfolio
+  const portfolios = {};
+  const assetHistory = { ...state.assetHistory };
+  const impliedRHistory = { ...state.impliedRHistory };
+
+  for (let g = 1; g <= 5; g++) {
+    const key = 'group' + g;
+    const role = ROLES[g].id;
+    const order = state.orders[key];
+    const currentPortfolio = { ...state.portfolios[key] };
+
+    const settled = settlePortfolio(currentPortfolio, order, matchResult, role, D, previousPrice);
+    portfolios[key] = settled;
+
+    // Update asset history
+    const hist = [...(state.assetHistory[key] || [])];
+    hist.push(settled.totalAssets);
+    assetHistory[key] = hist;
+
+    // Update implied r history
+    const rHist = [...(state.impliedRHistory[key] || [])];
+    const ir = computeImpliedR(order, D);
+    rHist.push(ir);
+    impliedRHistory[key] = rHist;
+  }
+
+  // Update price history
+  const priceHistory = [...state.priceHistory, newPrice];
+  const pStarHistory = [...state.pStarHistory, roundData.pStar];
+
+  // Store orders in allOrders for final results
+  const allOrders = state.allOrders ? { ...state.allOrders } : {};
+  allOrders['round' + round] = { ...state.orders };
+
+  store.setState({
+    phase: 'reveal',
+    revealSubPhase: 'results',
+    matchingResults: {
+      trades: matchResult.trades,
+      clearingPrice: matchResult.clearingPrice,
+      referencePrice: matchResult.referencePrice,
+      noTrade: matchResult.noTrade,
+    },
+    portfolios,
+    assetHistory,
+    impliedRHistory,
+    priceHistory,
+    pStarHistory,
+    currentPrice: newPrice,
+    allOrders,
+  });
+}
+
+function nextRound() {
+  const state = store.getState();
+  const nextR = state.currentRound + 1;
+  if (nextR > (state.totalRounds || 5)) return;
+  store.setState({
+    currentRound: nextR,
+    phase: 'waiting',
+    orders: { group1: null, group2: null, group3: null, group4: null, group5: null },
+    matchingResults: { trades: [], clearingPrice: null, referencePrice: null, noTrade: false },
+    timerSeconds: 60,
+    timerRunning: false,
+    revealSubPhase: null,
+    followTrendActive: false,
+    followTrendEnd: null,
+    followTrendPaused: false,
+  });
+  // Immediately move to signal
+  setTimeout(() => {
+    store.setState({ phase: 'signal' });
+  }, 100);
+}
+
+function endGame() {
+  const state = store.getState();
+  const finalPrice = state.currentPrice;
+
+  // Forced liquidation: hedge fund covers shorts + sells shares,
+  // market maker sells all shares — both at market price
+  const portfolios = forceLiquidateEndGame(state.portfolios, finalPrice);
+
+  store.setState({
+    phase: 'results',
+    portfolios,
+  });
+}
+
+function confirmReset() {
+  if (confirm('Reset the entire game? All progress will be lost.')) {
+    if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+    if (followTrendInterval) { clearInterval(followTrendInterval); followTrendInterval = null; }
+    store.resetGame();
+  }
+}
+
+// ---- Rendering ----
+
+function renderAll(state) {
+  renderPhaseIndicator(state);
+  renderRoundDots(state);
+  renderTimer(state);
+  renderButtons(state);
+  renderOrders(state);
+  renderPortfolios(state);
+}
+
+function renderPhaseIndicator(state) {
+  const el = document.getElementById('phaseIndicator');
+  el.className = 'phase-indicator ' + state.phase;
+  el.textContent = state.phase.toUpperCase();
+  if (state.phase === 'reveal' && state.revealSubPhase === 'followTrend') {
+    el.textContent = 'FOLLOW-TREND';
+  }
+  document.getElementById('headerRound').textContent = state.currentRound;
+  document.getElementById('headerTotalRounds').textContent = state.totalRounds || 5;
+  // Sync the select dropdown
+  const sel = document.getElementById('totalRoundsSelect');
+  if (sel) sel.value = state.totalRounds || 5;
+  // Disable dropdown once game has started
+  if (sel) sel.disabled = (state.phase !== 'waiting' || state.currentRound > 1);
+}
+
+function renderRoundDots(state) {
+  const totalRounds = state.totalRounds || 5;
+  const container = document.getElementById('roundDots');
+  let html = '';
+  for (let i = 1; i <= totalRounds; i++) {
+    let cls = 'round-dot';
+    if (i < state.currentRound || (i === state.currentRound && state.phase === 'results')) {
+      cls += ' done';
+    } else if (i === state.currentRound) {
+      cls += ' active';
+    }
+    html += '<div class="' + cls + '">' + i + '</div>';
+  }
+  container.innerHTML = html;
+}
+
+function renderTimer(state) {
+  const el = document.getElementById('timerDisplay');
+  const secs = state.timerSeconds;
+  const mins = Math.floor(secs / 60);
+  const s = secs % 60;
+  el.textContent = mins + ':' + (s < 10 ? '0' : '') + s;
+  if (secs <= 10 && state.phase === 'ordering') {
+    el.classList.add('warning');
+  } else {
+    el.classList.remove('warning');
+  }
+}
+
+function renderButtons(state) {
+  const phase = state.phase;
+  const round = state.currentRound;
+
+  const btnStart = document.getElementById('btnStartRound');
+  const btnOrder = document.getElementById('btnOpenOrdering');
+  const btnMatch = document.getElementById('btnRunMatching');
+  const btnNext = document.getElementById('btnNextRound');
+  const btnEnd = document.getElementById('btnEndGame');
+
+  // Disable all first
+  btnStart.disabled = true;
+  btnOrder.disabled = true;
+  btnMatch.disabled = true;
+  btnNext.disabled = true;
+  btnEnd.disabled = true;
+
+  btnStart.textContent = 'Start Round ' + round;
+
+  if (phase === 'waiting') {
+    btnStart.disabled = false;
+  } else if (phase === 'signal') {
+    btnOrder.disabled = false;
+  } else if (phase === 'ordering') {
+    const submittedCount = countSubmitted(state.orders);
+    const timerDone = state.timerSeconds <= 0;
+    if (submittedCount >= 5 || timerDone) {
+      btnMatch.disabled = false;
+    }
+  } else if (phase === 'reveal') {
+    const totalRounds = state.totalRounds || 5;
+    if (round < totalRounds) {
+      btnNext.disabled = false;
+      btnNext.textContent = 'Next Round (' + (round + 1) + ')';
+    } else {
+      btnEnd.disabled = false;
+    }
+  }
+}
+
+function countSubmitted(orders) {
+  let count = 0;
+  for (let g = 1; g <= 5; g++) {
+    if (orders['group' + g]) count++;
+  }
+  return count;
+}
+
+function renderOrders(state) {
+  document.getElementById('ordersRoundLabel').textContent = state.currentRound;
+  const tbody = document.getElementById('ordersBody');
+  const roundData = ROUNDS[state.currentRound - 1];
+  const D = roundData ? roundData.D : 5;
+  const submitted = countSubmitted(state.orders);
+  const banner = document.getElementById('allSubmittedBanner');
+
+  if (submitted >= 5 && state.phase === 'ordering') {
+    banner.classList.remove('hidden');
+  } else {
+    banner.classList.add('hidden');
+  }
+
+  let html = '';
+  for (let g = 1; g <= 5; g++) {
+    const key = 'group' + g;
+    const role = ROLES[g];
+    const order = state.orders[key];
+
+    html += '<tr>';
+    html += '<td>' + role.icon + ' ' + role.name + '</td>';
+
+    if (order) {
+      if (role.id === 'marketmaker') {
+        html += '<td><span class="text-green">BID</span> / <span class="text-red">ASK</span></td>';
+        html += '<td>' + order.bidPrice + ' / ' + order.askPrice + '</td>';
+        html += '<td>' + order.bidQty + ' / ' + order.askQty + '</td>';
+        const ir = computeImpliedR(order, D);
+        if (ir && ir.avgR) {
+          html += '<td>' + (ir.avgR * 100).toFixed(1) + '%</td>';
+        } else {
+          html += '<td>-</td>';
+        }
+        html += '<td class="text-dim">Spread: ' + (order.askPrice - order.bidPrice) + '</td>';
+      } else {
+        const dirColor = order.direction === 'buy' ? 'text-green' : order.direction === 'sell' ? 'text-red' : 'text-orange';
+        html += '<td class="' + dirColor + '">' + (order.direction || 'hold').toUpperCase() + '</td>';
+        html += '<td>' + (order.price || '-') + '</td>';
+        html += '<td>' + (order.quantity || '-') + '</td>';
+        const ir = computeImpliedR(order, D);
+        if (ir !== null && typeof ir === 'number') {
+          html += '<td>' + (ir * 100).toFixed(1) + '%</td>';
+        } else {
+          html += '<td>-</td>';
+        }
+        // Details
+        let details = [];
+        if (order.retailMode === 'emotion') details.push('Emotion');
+        if (order.retailMode === 'followtrend') details.push('Follow-trend');
+        if (order.emotionExtra) details.push('+1 share');
+        if (order.followTrendActive) details.push('Trend active');
+        if (order.isShort) details.push('SHORT');
+        if (order.isCover) details.push('COVER');
+        html += '<td class="text-dim">' + (details.length > 0 ? details.join(', ') : '-') + '</td>';
+      }
+      html += '<td><span class="chip chip-submitted">Submitted</span></td>';
+    } else {
+      html += '<td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>';
+      html += '<td><span class="chip chip-waiting">Waiting</span></td>';
+    }
+    html += '</tr>';
+  }
+  tbody.innerHTML = html;
+}
+
+function renderPortfolios(state) {
+  const container = document.getElementById('portfolioGrid');
+  let html = '';
+  for (let g = 1; g <= 5; g++) {
+    const key = 'group' + g;
+    const role = ROLES[g];
+    const p = state.portfolios[key];
+    if (!p) continue;
+
+    const assetColor = p.totalAssets >= 1000 ? 'text-green' : 'text-red';
+    const frozenTag = p.frozen ? ' <span class="text-red" style="font-size:0.7rem;">[FROZEN]</span>' : '';
+
+    html += '<div class="portfolio-card">';
+    html += '<div class="group-icon">' + role.icon + '</div>';
+    html += '<div class="group-name">' + role.name + frozenTag + '</div>';
+    html += '<div class="total-assets ' + assetColor + '">' + p.totalAssets.toFixed(1) + '</div>';
+    html += '<div class="detail-row"><span>Cash</span><span class="detail-val">' + p.cash.toFixed(1) + '</span></div>';
+    html += '<div class="detail-row"><span>Shares</span><span class="detail-val">' + p.shares + '</span></div>';
+    if (role.id === 'hedge') {
+      html += '<div class="detail-row"><span>Short</span><span class="detail-val">' + p.shortPosition + '</span></div>';
+      if (p.shortCostBasis !== null) {
+        html += '<div class="detail-row"><span>Short Basis</span><span class="detail-val">' + p.shortCostBasis + '</span></div>';
+      }
+    }
+    if (role.id === 'pension') {
+      html += '<div class="detail-row"><span>Dividends</span><span class="detail-val">' + p.dividendAccumulated.toFixed(1) + '</span></div>';
+    }
+    html += '</div>';
+  }
+  container.innerHTML = html;
+}
+
+// ---- Real-time Sync ----
+
+store.subscribe(function(state) {
+  renderAll(state);
+
+  // If follow-trend is active and we have an end time, ensure countdown is running
+  if (state.followTrendActive && state.followTrendEnd && !followTrendInterval) {
+    document.getElementById('followTrendSection').classList.remove('hidden');
+    startFollowTrendCountdown(state.followTrendEnd);
+  }
+  if (!state.followTrendActive) {
+    document.getElementById('followTrendSection').classList.add('hidden');
+  }
+});
+
+// Also listen for storage events from other tabs
+window.addEventListener('storage', function(e) {
+  if (e.key === 'marketgame_state') {
+    renderAll(store.getState());
+  }
+});
+
+// Initial render
+renderAll(store.getState());
+// Sync follow-trend duration input with state
+const initState = store.getState();
+document.getElementById('ftDurationInput').value = initState.followTrendDuration || 30;
+</script>
+</body>
+</html>

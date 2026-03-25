@@ -1,0 +1,1325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Market Game — Display</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { overflow-x: hidden; }
+
+    /* Display-specific styles — large projection-optimized */
+    .display-wrapper { padding: 0; min-height: 100vh; }
+
+    /* Waiting phase */
+    .waiting-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      gap: 24px;
+    }
+    .waiting-screen h1 {
+      font-size: 3.5rem;
+      font-weight: 900;
+      background: linear-gradient(135deg, var(--accent), var(--purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .waiting-screen .subtitle {
+      font-size: 1.5rem;
+      color: var(--text-dim);
+    }
+    .waiting-dots::after {
+      content: '';
+      animation: dots 1.5s steps(4, end) infinite;
+    }
+    @keyframes dots {
+      0% { content: ''; }
+      25% { content: '.'; }
+      50% { content: '..'; }
+      75% { content: '...'; }
+    }
+
+    /* Signal phase */
+    .signal-screen { padding: 40px; min-height: 100vh; }
+    .signal-round {
+      font-size: 2rem;
+      font-weight: 900;
+      text-align: center;
+      color: var(--accent);
+      margin-bottom: 20px;
+    }
+    .signal-d {
+      font-size: 6rem;
+      font-weight: 900;
+      text-align: center;
+      color: var(--green);
+      line-height: 1;
+      margin-bottom: 12px;
+    }
+    .signal-d-label {
+      font-size: 1.4rem;
+      text-align: center;
+      color: var(--text-dim);
+      margin-bottom: 32px;
+    }
+    .signal-event {
+      max-width: 1000px;
+      margin: 0 auto 24px;
+      text-align: center;
+    }
+    .signal-event-en {
+      font-size: 1.8rem;
+      font-weight: 700;
+      line-height: 1.4;
+      margin-bottom: 12px;
+    }
+    .signal-price-row {
+      display: flex;
+      justify-content: center;
+      gap: 60px;
+      margin-top: 32px;
+    }
+    .signal-price-box {
+      text-align: center;
+    }
+    .signal-price-box .label {
+      font-size: 1.1rem;
+      color: var(--text-dim);
+      margin-bottom: 4px;
+    }
+    .signal-price-box .value {
+      font-size: 3rem;
+      font-weight: 900;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Ordering phase */
+    .ordering-screen { padding: 16px 24px; min-height: 100vh; display: flex; flex-direction: column; }
+    .ordering-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      background: var(--surface);
+      border-radius: 12px;
+      margin-bottom: 16px;
+      border: 1px solid var(--border);
+    }
+    .ordering-top .round-info {
+      font-size: 1.5rem;
+      font-weight: 900;
+    }
+    .ordering-top .d-info {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--green);
+    }
+    .ordering-timer {
+      font-size: 3.5rem;
+      font-weight: 900;
+      font-variant-numeric: tabular-nums;
+      padding: 8px 32px;
+      border-radius: 12px;
+      background: var(--surface2);
+      border: 2px solid var(--border);
+      transition: all 0.3s;
+    }
+    .ordering-timer.warning {
+      color: var(--red);
+      border-color: var(--red);
+      animation: pulse 1s infinite;
+    }
+    .ordering-body {
+      display: grid;
+      grid-template-columns: 1fr 1.2fr;
+      gap: 16px;
+      flex: 1;
+    }
+    .ordering-ref-table { overflow: auto; }
+    .ordering-ref-table table {
+      font-size: 1.2rem;
+    }
+    .ordering-ref-table th,
+    .ordering-ref-table td {
+      padding: 12px 16px;
+      text-align: center;
+    }
+    .ordering-ref-table .highlight-col {
+      background: rgba(59,130,246,0.15);
+      font-weight: 900;
+    }
+    .ordering-status-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .group-status-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 24px;
+      background: var(--surface);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      font-size: 1.3rem;
+    }
+    .group-status-row .group-icon { font-size: 2rem; }
+    .group-status-row .group-name { flex: 1; font-weight: 700; }
+    .group-status-row .group-status-chip {
+      padding: 6px 20px;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 1.1rem;
+    }
+    .group-status-row .submitted { background: rgba(34,197,94,0.15); color: var(--green); }
+    .group-status-row .waiting { background: rgba(245,158,11,0.15); color: var(--orange); }
+    .ordering-bottom {
+      display: flex;
+      justify-content: center;
+      gap: 60px;
+      padding: 16px 24px;
+      background: var(--surface);
+      border-radius: 12px;
+      margin-top: 16px;
+      border: 1px solid var(--border);
+    }
+    .ordering-bottom .stat {
+      text-align: center;
+    }
+    .ordering-bottom .stat .label {
+      font-size: 1rem;
+      color: var(--text-dim);
+    }
+    .ordering-bottom .stat .value {
+      font-size: 2rem;
+      font-weight: 900;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Reveal phases */
+    .reveal-screen { padding: 24px; min-height: 100vh; }
+    .reveal-title {
+      font-size: 2rem;
+      font-weight: 900;
+      text-align: center;
+      margin-bottom: 24px;
+      color: var(--purple);
+    }
+
+    /* Follow Trend sub-phase */
+    .follow-trend-timer {
+      font-size: 4rem;
+      font-weight: 900;
+      text-align: center;
+      margin-bottom: 24px;
+      font-variant-numeric: tabular-nums;
+    }
+    .direction-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 16px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .direction-card {
+      text-align: center;
+      padding: 24px 16px;
+      border-radius: 16px;
+      background: var(--surface);
+      border: 2px solid var(--border);
+    }
+    .direction-card .icon { font-size: 3rem; margin-bottom: 8px; }
+    .direction-card .name { font-size: 1rem; color: var(--text-dim); margin-bottom: 12px; }
+    .direction-card .dir {
+      font-size: 1.8rem;
+      font-weight: 900;
+      padding: 8px;
+      border-radius: 8px;
+    }
+    .direction-card .dir.buy { color: var(--green); background: rgba(34,197,94,0.15); }
+    .direction-card .dir.sell { color: var(--red); background: rgba(239,68,68,0.15); }
+    .direction-card .dir.hold { color: var(--orange); background: rgba(245,158,11,0.15); }
+    .direction-card .dir.mm { color: var(--accent); background: rgba(59,130,246,0.15); }
+
+    /* Order Book sub-phase */
+    .ob-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .ob-side {
+      border-radius: 16px;
+      padding: 24px;
+    }
+    .ob-sell { background: rgba(239,68,68,0.06); border: 2px solid rgba(239,68,68,0.3); }
+    .ob-buy { background: rgba(34,197,94,0.06); border: 2px solid rgba(34,197,94,0.3); }
+    .ob-side-title {
+      font-size: 1.3rem;
+      font-weight: 900;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+    .ob-entry {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      font-size: 1.2rem;
+      font-weight: 700;
+      background: var(--surface);
+    }
+    .ob-entry .ob-icon { font-size: 1.5rem; margin-right: 12px; }
+    .ob-entry .ob-price { flex: 1; text-align: center; font-variant-numeric: tabular-nums; }
+    .ob-entry .ob-qty { text-align: right; color: var(--text-dim); }
+
+    /* Matching sub-phase */
+    .match-list {
+      max-width: 900px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .match-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      padding: 16px 24px;
+      border-radius: 12px;
+      background: var(--surface);
+      border: 1px solid var(--accent);
+      font-size: 1.3rem;
+      font-weight: 700;
+      animation: matchFadeIn 0.5s ease-out;
+    }
+    @keyframes matchFadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .match-row .match-buyer { color: var(--green); }
+    .match-row .match-seller { color: var(--red); }
+    .match-row .match-price { color: var(--accent); font-size: 1.5rem; }
+    .match-row .match-arrow { color: var(--text-dim); }
+
+    /* Results sub-phase */
+    .results-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .results-full { grid-column: 1 / -1; }
+    .price-comparison {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 40px;
+      padding: 24px;
+    }
+    .price-box {
+      text-align: center;
+    }
+    .price-box .label { font-size: 1.1rem; color: var(--text-dim); margin-bottom: 4px; }
+    .price-box .value {
+      font-size: 3.5rem;
+      font-weight: 900;
+      font-variant-numeric: tabular-nums;
+    }
+    .price-vs { font-size: 2rem; color: var(--text-dim); font-weight: 300; }
+    .deviation-badge {
+      display: inline-block;
+      padding: 8px 24px;
+      border-radius: 24px;
+      font-size: 1.3rem;
+      font-weight: 900;
+      margin-top: 16px;
+    }
+    .deviation-green { background: rgba(34,197,94,0.2); color: var(--green); }
+    .deviation-orange { background: rgba(245,158,11,0.2); color: var(--orange); }
+    .deviation-red { background: rgba(239,68,68,0.2); color: var(--red); }
+
+    .implied-r-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+    }
+    .implied-r-card {
+      text-align: center;
+      padding: 16px 8px;
+      border-radius: 12px;
+      background: var(--surface2);
+    }
+    .implied-r-card .icon { font-size: 1.8rem; }
+    .implied-r-card .r-val { font-size: 1.6rem; font-weight: 900; margin-top: 4px; font-variant-numeric: tabular-nums; }
+    .implied-r-card .r-label { font-size: 0.8rem; color: var(--text-dim); }
+
+    /* Final results */
+    .final-screen { padding: 24px; }
+    .final-title {
+      font-size: 3rem;
+      font-weight: 900;
+      text-align: center;
+      margin-bottom: 32px;
+      background: linear-gradient(135deg, var(--orange), var(--red));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .final-section { margin-bottom: 32px; }
+    .final-section-title {
+      font-size: 1.6rem;
+      font-weight: 900;
+      color: var(--accent);
+      margin-bottom: 16px;
+      text-align: center;
+    }
+    .charts-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+    .awards-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    .leaderboard-final { max-width: 900px; margin: 0 auto; }
+    .leaderboard-row-final {
+      display: flex;
+      align-items: center;
+      padding: 16px 24px;
+      border-radius: 12px;
+      margin-bottom: 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+    }
+    .leaderboard-row-final:first-child {
+      border: 2px solid var(--orange);
+      background: rgba(245,158,11,0.08);
+    }
+    .lb-rank {
+      font-size: 2rem;
+      font-weight: 900;
+      width: 50px;
+      text-align: center;
+      color: var(--text-dim);
+    }
+    .leaderboard-row-final:first-child .lb-rank { color: var(--orange); }
+    .lb-icon { font-size: 2rem; margin-right: 12px; }
+    .lb-name { flex: 1; font-size: 1.3rem; font-weight: 700; }
+    .lb-details {
+      display: flex;
+      gap: 32px;
+      font-size: 1rem;
+      color: var(--text-dim);
+    }
+    .lb-details span { font-variant-numeric: tabular-nums; }
+    .lb-total {
+      font-size: 1.8rem;
+      font-weight: 900;
+      font-variant-numeric: tabular-nums;
+      margin-left: 24px;
+      min-width: 120px;
+      text-align: right;
+    }
+
+    /* Crisis banner for matching */
+    .crisis-full {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 40px;
+      gap: 20px;
+    }
+    .crisis-full .crisis-icon { font-size: 6rem; }
+    .crisis-full .crisis-text {
+      font-size: 3rem;
+      font-weight: 900;
+      color: var(--red);
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: 4px;
+    }
+    .crisis-full .crisis-sub {
+      font-size: 1.3rem;
+      color: var(--text-dim);
+    }
+    .crisis-full .crisis-ref {
+      font-size: 2rem;
+      color: var(--text-dim);
+      font-weight: 700;
+    }
+
+    /* Transitions */
+    .phase-container { animation: fadeIn 0.4s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  </style>
+</head>
+<body>
+  <div style="position:fixed;top:12px;right:16px;z-index:100;display:flex;gap:10px;">
+    <a href="roles.html" style="color:var(--text-dim);font-size:0.8rem;text-decoration:none;background:var(--surface);padding:4px 10px;border-radius:8px;border:1px solid var(--border);">📖 Guide</a>
+    <a href="history.html" style="color:var(--text-dim);font-size:0.8rem;text-decoration:none;background:var(--surface);padding:4px 10px;border-radius:8px;border:1px solid var(--border);">📋 History</a>
+  </div>
+  <div class="display-wrapper" id="app"></div>
+
+  <script src="js/game.js"></script>
+  <script src="js/store.js"></script>
+  <script>
+    // ============================================================
+    // Display page — purely reactive, reads state, never writes
+    // ============================================================
+
+    const app = document.getElementById('app');
+    let priceChart = null;
+    let impliedRChart = null;
+    let currentPhaseKey = '';
+
+    function getRoundData(roundNum) {
+      return ROUNDS[roundNum - 1] || ROUNDS[0];
+    }
+
+    function getGroupIcon(groupId) {
+      return ROLES[groupId] ? ROLES[groupId].icon : '?';
+    }
+
+    function getGroupName(groupId) {
+      return ROLES[groupId] ? ROLES[groupId].name : 'Group ' + groupId;
+    }
+
+    function getDirection(order) {
+      if (!order) return 'HOLD';
+      if (order.role === 'marketmaker') return 'BID/ASK';
+      return (order.direction || 'hold').toUpperCase();
+    }
+
+    function getDirectionClass(order) {
+      if (!order) return 'hold';
+      if (order.role === 'marketmaker') return 'mm';
+      return (order.direction || 'hold');
+    }
+
+    function formatTimer(seconds) {
+      const m = Math.floor(seconds / 60);
+      const s = seconds % 60;
+      return m + ':' + (s < 10 ? '0' : '') + s;
+    }
+
+    function deviationColor(clearingPrice, pStar) {
+      if (!clearingPrice || !pStar) return 'red';
+      const pct = Math.abs(clearingPrice - pStar) / pStar;
+      if (pct <= 0.10) return 'green';
+      if (pct <= 0.20) return 'orange';
+      return 'red';
+    }
+
+    function deviationPct(clearingPrice, pStar) {
+      if (!clearingPrice || !pStar) return 0;
+      return Math.round(Math.abs(clearingPrice - pStar) / pStar * 100);
+    }
+
+    // ============================================================
+    // Render functions for each phase
+    // ============================================================
+
+    function renderWaiting() {
+      return `
+        <div class="waiting-screen phase-container">
+          <h1>THE MARKET GAME</h1>
+          <div class="subtitle">Waiting for game to start<span class="waiting-dots"></span></div>
+          <div style="margin-top:40px; color:var(--text-dim); font-size:1.1rem;">
+            Projector Display &mdash; Ready
+          </div>
+        </div>`;
+    }
+
+    function renderSignal(state) {
+      const round = getRoundData(state.currentRound);
+      const d = round.D;
+      const refTable = round.referenceTable;
+      const dCol = 'D' + d;
+
+      let tableRows = refTable.map(row => {
+        const pStarVal = row[dCol] || '—';
+        const isHighlight = row[dCol] === round.pStar;
+        return `<tr${isHighlight ? ' style="background:rgba(59,130,246,0.12);"' : ''}>
+          <td style="font-weight:700;">${row.r}</td>
+          <td>${row.D4}</td>
+          <td>${row.D5}</td>
+          <td>${row.D6}</td>
+        </tr>`;
+      }).join('');
+
+      return `
+        <div class="signal-screen phase-container">
+          <div class="signal-round">ROUND ${state.currentRound} / ${state.totalRounds || 5}</div>
+          <div class="signal-d">D = ${d}</div>
+          <div class="signal-d-label">Dividend this round</div>
+          <div class="signal-event">
+            <div class="signal-event-en">${round.event}</div>
+          </div>
+          <div class="card" style="max-width:800px; margin:0 auto 24px;">
+            <div class="card-title text-center">r Reference Table &mdash; P* = D / r</div>
+            <table class="ref-table">
+              <thead>
+                <tr>
+                  <th>r (discount rate)</th>
+                  <th${d===4?' class="highlight-col"':''}>D=4</th>
+                  <th${d===5?' class="highlight-col"':''}>D=5</th>
+                  <th${d===6?' class="highlight-col"':''}>D=6</th>
+                </tr>
+              </thead>
+              <tbody>${tableRows}</tbody>
+            </table>
+          </div>
+          <div class="signal-price-row">
+            <div class="signal-price-box">
+              <div class="label">Current Price</div>
+              <div class="value text-accent">${state.currentPrice}</div>
+            </div>
+            <div class="signal-price-box">
+              <div class="label">P* (Fair Value)</div>
+              <div class="value text-green">${round.pStar}</div>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    function renderOrdering(state) {
+      const round = getRoundData(state.currentRound);
+      const d = round.D;
+      const dCol = 'D' + d;
+      const timerWarning = state.timerSeconds <= 10;
+
+      let refRows = round.referenceTable.map(row => {
+        const pStarVal = row[dCol] || '—';
+        const isHighlight = row[dCol] === round.pStar;
+        return `<tr${isHighlight ? ' style="background:rgba(59,130,246,0.12);"' : ''}>
+          <td style="font-weight:700;">${row.r}</td>
+          <td${d===4?' class="highlight-col"':''}>${row.D4}</td>
+          <td${d===5?' class="highlight-col"':''}>${row.D5}</td>
+          <td${d===6?' class="highlight-col"':''}>${row.D6}</td>
+        </tr>`;
+      }).join('');
+
+      let statusRows = '';
+      for (let g = 1; g <= 5; g++) {
+        const order = state.orders['group' + g];
+        const submitted = !!order;
+        statusRows += `
+          <div class="group-status-row" data-group="${g}">
+            <span class="group-icon">${getGroupIcon(g)}</span>
+            <span class="group-name">${getGroupName(g)}</span>
+            <span class="group-status-chip ${submitted ? 'submitted' : 'waiting'}">
+              ${submitted ? '&#10003; Submitted' : '&#9203; Waiting'}
+            </span>
+          </div>`;
+      }
+
+      return `
+        <div class="ordering-screen phase-container">
+          <div class="ordering-top">
+            <div class="round-info">ROUND ${state.currentRound} / ${state.totalRounds || 5}</div>
+            <div class="d-info">D = ${d}</div>
+            <div class="ordering-timer${timerWarning ? ' warning' : ''}">${formatTimer(state.timerSeconds)}</div>
+          </div>
+          <div class="ordering-body">
+            <div class="card ordering-ref-table">
+              <div class="card-title">r Reference Table</div>
+              <table class="ref-table">
+                <thead>
+                  <tr>
+                    <th>r (discount rate)</th>
+                    <th${d===4?' class="highlight-col"':''}>D=4</th>
+                    <th${d===5?' class="highlight-col"':''}>D=5</th>
+                    <th${d===6?' class="highlight-col"':''}>D=6</th>
+                  </tr>
+                </thead>
+                <tbody>${refRows}</tbody>
+              </table>
+            </div>
+            <div class="card">
+              <div class="card-title">Order Status</div>
+              <div class="ordering-status-grid">${statusRows}</div>
+            </div>
+          </div>
+          <div class="ordering-bottom">
+            <div class="stat">
+              <div class="label">Last Price</div>
+              <div class="value text-accent">${state.currentPrice}</div>
+            </div>
+            <div class="stat">
+              <div class="label">P* this Round</div>
+              <div class="value text-green">${round.pStar}</div>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    // Patch ordering screen in-place (no flicker)
+    function patchOrderingScreen(state) {
+      // Update timer
+      const timerEl = app.querySelector('.ordering-timer');
+      if (timerEl) {
+        timerEl.textContent = formatTimer(state.timerSeconds);
+        if (state.timerSeconds <= 10) { timerEl.classList.add('warning'); } else { timerEl.classList.remove('warning'); }
+      }
+      // Update order status chips
+      for (let g = 1; g <= 5; g++) {
+        const row = app.querySelector(`.group-status-row[data-group="${g}"]`);
+        if (!row) continue;
+        const order = state.orders['group' + g];
+        const chip = row.querySelector('.group-status-chip');
+        if (chip) {
+          if (order) {
+            chip.className = 'group-status-chip submitted';
+            chip.innerHTML = '&#10003; Submitted';
+          } else {
+            chip.className = 'group-status-chip waiting';
+            chip.innerHTML = '&#9203; Waiting';
+          }
+        }
+      }
+    }
+
+    function renderRevealFollowTrend(state) {
+      const ftEnd = state.followTrendEnd;
+      const paused = state.followTrendPaused;
+      let remaining = 10;
+      if (ftEnd && !paused) {
+        remaining = Math.max(0, Math.ceil((ftEnd - Date.now()) / 1000));
+      }
+      const timerColor = paused ? 'var(--orange)' : (remaining <= 3 ? 'var(--red)' : 'var(--orange)');
+
+      let cards = '';
+      for (let g = 1; g <= 5; g++) {
+        const order = state.orders['group' + g];
+        const dir = getDirection(order);
+        const dirClass = getDirectionClass(order);
+        cards += `
+          <div class="direction-card">
+            <div class="icon">${getGroupIcon(g)}</div>
+            <div class="name">${getGroupName(g)}</div>
+            <div class="dir ${dirClass}">${dir}</div>
+          </div>`;
+      }
+
+      return `
+        <div class="reveal-screen phase-container">
+          <div class="reveal-title">RETAIL DECISION WINDOW</div>
+          <div class="follow-trend-timer" style="color:${timerColor};">${paused ? 'PAUSED' : remaining + 's'}</div>
+          <div style="text-align:center; color:var(--text-dim); font-size:1.2rem; margin-bottom:24px;">
+            Retail investors may change their order after seeing other groups' directions
+          </div>
+          <div class="direction-grid">${cards}</div>
+        </div>`;
+    }
+
+    function renderRevealOrderBook(state) {
+      const round = getRoundData(state.currentRound);
+      const mr = state.matchingResults || {};
+      const orders = state.orders || {};
+
+      // Build buy/sell sides from orders
+      let buys = [];
+      let sells = [];
+      for (let g = 1; g <= 5; g++) {
+        const order = orders['group' + g];
+        if (!order || order.direction === 'hold') {
+          if (order && order.role === 'marketmaker') {
+            buys.push({ groupId: g, price: order.bidPrice, qty: order.bidQty, icon: getGroupIcon(g) });
+            sells.push({ groupId: g, price: order.askPrice, qty: order.askQty, icon: getGroupIcon(g) });
+          }
+          continue;
+        }
+        if (order.role === 'marketmaker') {
+          buys.push({ groupId: g, price: order.bidPrice, qty: order.bidQty, icon: getGroupIcon(g) });
+          sells.push({ groupId: g, price: order.askPrice, qty: order.askQty, icon: getGroupIcon(g) });
+        } else if (order.direction === 'buy') {
+          let qty = order.quantity;
+          if (order.retailMode === 'emotion' && order.emotionExtra) qty += 1;
+          buys.push({ groupId: g, price: order.price, qty: qty, icon: getGroupIcon(g) });
+        } else if (order.direction === 'sell') {
+          sells.push({ groupId: g, price: order.price, qty: order.quantity, icon: getGroupIcon(g) });
+        }
+      }
+
+      buys.sort((a, b) => b.price - a.price);
+      sells.sort((a, b) => a.price - b.price);
+
+      let sellRows = sells.map(s =>
+        `<div class="ob-entry">
+          <span class="ob-icon">${s.icon}</span>
+          <span class="ob-price text-red">${s.price}</span>
+          <span class="ob-qty">&times; ${s.qty} shares</span>
+        </div>`
+      ).join('');
+
+      let buyRows = buys.map(b =>
+        `<div class="ob-entry">
+          <span class="ob-icon">${b.icon}</span>
+          <span class="ob-price text-green">${b.price}</span>
+          <span class="ob-qty">&times; ${b.qty} shares</span>
+        </div>`
+      ).join('');
+
+      if (!sellRows) sellRows = '<div style="text-align:center; color:var(--text-dim); padding:24px;">No sell orders</div>';
+      if (!buyRows) buyRows = '<div style="text-align:center; color:var(--text-dim); padding:24px;">No buy orders</div>';
+
+      return `
+        <div class="reveal-screen phase-container">
+          <div class="reveal-title">ORDER BOOK &mdash; ROUND ${state.currentRound}</div>
+          <div class="ob-container">
+            <div class="ob-side ob-sell">
+              <div class="ob-side-title text-red">SELL SIDE (low &rarr; high)</div>
+              ${sellRows}
+            </div>
+            <div class="ob-side ob-buy">
+              <div class="ob-side-title text-green">BUY SIDE (high &rarr; low)</div>
+              ${buyRows}
+            </div>
+          </div>
+        </div>`;
+    }
+
+    function renderRevealMatching(state) {
+      const mr = state.matchingResults || {};
+      const trades = mr.trades || [];
+      const noTrade = mr.noTrade;
+
+      if (noTrade) {
+        const refPrice = mr.referencePrice || '—';
+        return `
+          <div class="reveal-screen phase-container">
+            <div class="crisis-banner crisis-full" style="min-height:60vh; animation: pulse 1.5s infinite;">
+              <div class="crisis-icon">&#9888;&#65039;</div>
+              <div class="crisis-text">LIQUIDITY CRISIS</div>
+              <div class="crisis-sub">No trades could be matched this round</div>
+              <div class="crisis-ref">Reference Price (indicative): <span style="color:var(--text-dim);">${refPrice}</span></div>
+            </div>
+          </div>`;
+      }
+
+      let tradeRows = trades.map((t, i) =>
+        `<div class="match-row" style="animation-delay:${i * 0.3}s;">
+          <span style="color:var(--text-dim); min-width:30px;">#${i + 1}</span>
+          <span class="match-buyer">${getGroupIcon(t.buyer)} ${getGroupName(t.buyer)}</span>
+          <span class="match-arrow">&larr; buys from &rarr;</span>
+          <span class="match-seller">${getGroupIcon(t.seller)} ${getGroupName(t.seller)}</span>
+          <span class="match-price">@ ${t.price}</span>
+          <span style="color:var(--text-dim);">&times; ${t.qty}</span>
+        </div>`
+      ).join('');
+
+      return `
+        <div class="reveal-screen phase-container">
+          <div class="reveal-title">MATCHED TRADES &mdash; ROUND ${state.currentRound}</div>
+          <div class="match-list">${tradeRows}</div>
+        </div>`;
+    }
+
+    function renderRevealResults(state) {
+      const round = getRoundData(state.currentRound);
+      const mr = state.matchingResults || {};
+      const clearingPrice = mr.clearingPrice || mr.referencePrice || state.currentPrice;
+      const pStar = round.pStar;
+      const devColor = deviationColor(clearingPrice, pStar);
+      const devPct = deviationPct(clearingPrice, pStar);
+      const D = round.D;
+
+      // Implied r cards
+      let impliedCards = '';
+      for (let g = 1; g <= 5; g++) {
+        const order = state.orders['group' + g];
+        const ir = computeImpliedR(order, D);
+        let display = '—';
+        if (ir !== null) {
+          if (typeof ir === 'object') {
+            display = ir.avgR !== null ? (ir.avgR * 100).toFixed(1) + '%' : '—';
+          } else {
+            display = (ir * 100).toFixed(1) + '%';
+          }
+        }
+        impliedCards += `
+          <div class="implied-r-card">
+            <div class="icon">${getGroupIcon(g)}</div>
+            <div class="r-val">${display}</div>
+            <div class="r-label">implied r = D / price</div>
+          </div>`;
+      }
+
+      // Leaderboard
+      let groups = [];
+      for (let g = 1; g <= 5; g++) {
+        const p = state.portfolios['group' + g];
+        groups.push({ id: g, ...p });
+      }
+      groups.sort((a, b) => (b.totalAssets || 0) - (a.totalAssets || 0));
+
+      let lbRows = groups.map((g, i) => {
+        const icon = getGroupIcon(g.id);
+        const name = getGroupName(g.id);
+        const assets = (g.totalAssets || 0).toFixed(1);
+        const shares = g.shares || 0;
+        const shortInfo = g.shortPosition > 0 ? ` (${g.shortPosition}S)` : '';
+        return `
+          <div class="leaderboard-row-final">
+            <div class="lb-rank">${i + 1}</div>
+            <div class="lb-icon">${icon}</div>
+            <div class="lb-name">${name}</div>
+            <div class="lb-details">
+              <span>Cash: ${(g.cash || 0).toFixed(1)}</span>
+              <span>Shares: ${shares}${shortInfo}</span>
+            </div>
+            <div class="lb-total">${assets}</div>
+          </div>`;
+      }).join('');
+
+      return `
+        <div class="reveal-screen phase-container">
+          <div class="reveal-title">ROUND ${state.currentRound} RESULTS</div>
+          <div class="results-grid">
+            <div class="card">
+              <div class="card-title text-center">Clearing Price vs P*</div>
+              <div class="price-comparison">
+                <div class="price-box">
+                  <div class="label">Clearing Price</div>
+                  <div class="value text-accent">${clearingPrice}</div>
+                </div>
+                <div class="price-vs">vs</div>
+                <div class="price-box">
+                  <div class="label">P* (Fair Value)</div>
+                  <div class="value text-green">${pStar}</div>
+                </div>
+              </div>
+              <div class="text-center">
+                <span class="deviation-badge deviation-${devColor}">
+                  ${devPct === 0 ? 'Exact match!' : (clearingPrice > pStar ? '+' : '-') + devPct + '% deviation'}
+                </span>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-title text-center">Implied Discount Rates (r = D / price)</div>
+              <div class="implied-r-grid">${impliedCards}</div>
+            </div>
+            <div class="card results-full">
+              <div class="card-title text-center">Leaderboard</div>
+              ${lbRows}
+            </div>
+            <div class="card results-full">
+              <div class="card-title text-center">Price History</div>
+              <div class="chart-container" style="height:280px; position:relative;">
+                <canvas id="roundPriceChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    function renderFinalResults(state) {
+      // Final leaderboard
+      let groups = [];
+      for (let g = 1; g <= 5; g++) {
+        const p = state.portfolios['group' + g];
+        groups.push({ id: g, ...p });
+      }
+      groups.sort((a, b) => (b.totalAssets || 0) - (a.totalAssets || 0));
+
+      let lbRows = groups.map((g, i) => {
+        const icon = getGroupIcon(g.id);
+        const name = getGroupName(g.id);
+        const assets = (g.totalAssets || 0).toFixed(1);
+        const shares = g.shares || 0;
+        const shortInfo = g.shortPosition > 0 ? ` (${g.shortPosition}S)` : '';
+        return `
+          <div class="leaderboard-row-final">
+            <div class="lb-rank">${i + 1}</div>
+            <div class="lb-icon">${icon}</div>
+            <div class="lb-name">${name}</div>
+            <div class="lb-details">
+              <span>Cash: ${(g.cash || 0).toFixed(1)}</span>
+              <span>Shares: ${shares}${shortInfo}</span>
+            </div>
+            <div class="lb-total">${assets}</div>
+          </div>`;
+      }).join('');
+
+      // Special awards
+      const awards = computeSpecialAwards(state);
+      let awardCards = awards.map(a => {
+        const gName = getGroupName(a.group);
+        const gIcon = getGroupIcon(a.group);
+        return `
+          <div class="award-card">
+            <div class="award-icon">${a.icon}</div>
+            <div class="award-title">${a.title}</div>
+            <div class="award-group">${gIcon} ${gName}</div>
+            <div class="award-detail">${a.detail}</div>
+          </div>`;
+      }).join('');
+
+      // Key insight
+      const priceR3 = state.priceHistory[3] !== undefined ? state.priceHistory[3] : '??';
+      const priceR4 = state.priceHistory[4] !== undefined ? state.priceHistory[4] : '??';
+
+      return `
+        <div class="final-screen phase-container">
+          <div class="final-title">GAME OVER &mdash; FINAL RESULTS</div>
+
+          <div class="final-section">
+            <div class="final-section-title">Price History: Actual vs Fair Value</div>
+            <div class="charts-row">
+              <div class="chart-container" style="position:relative; height:340px;">
+                <canvas id="finalPriceChart"></canvas>
+              </div>
+              <div class="chart-container" style="position:relative; height:340px;">
+                <canvas id="finalImpliedRChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div class="final-section">
+            <div class="final-section-title">Final Leaderboard</div>
+            <div class="leaderboard-final">${lbRows}</div>
+          </div>
+
+          <div class="final-section">
+            <div class="final-section-title">Special Awards</div>
+            <div class="awards-grid">${awardCards}</div>
+          </div>
+
+          ${(state.totalRounds || 5) >= 4 ? `<div class="final-section">
+            <div class="insight-box text-center">
+              <strong>Key Insight:</strong> Round 3 and Round 4 had identical dividends (D = 6).
+              But the clearing price moved from <strong>${priceR3}</strong> to <strong>${priceR4}</strong>.
+              The dividend didn't change &mdash; your <em>risk perception</em> did.
+              This is Cochrane's finding: <strong>price volatility comes from discount rate changes, not dividend changes.</strong>
+            </div>
+          </div>` : ''}
+        </div>`;
+    }
+
+    // ============================================================
+    // Chart rendering
+    // ============================================================
+
+    function renderRoundPriceChart(state) {
+      const canvas = document.getElementById('roundPriceChart');
+      if (!canvas) return;
+      if (priceChart) { priceChart.destroy(); priceChart = null; }
+
+      const labels = ['Start'];
+      const actualPrices = [state.priceHistory[0] || 100];
+      const pStarPrices = [state.pStarHistory[0] || 100];
+
+      const numRounds = Math.min(state.currentRound, state.priceHistory.length - 1);
+      for (let i = 1; i <= numRounds; i++) {
+        labels.push('R' + i);
+        actualPrices.push(state.priceHistory[i] !== undefined ? state.priceHistory[i] : null);
+        pStarPrices.push(state.pStarHistory[i] !== undefined ? state.pStarHistory[i] : null);
+      }
+
+      priceChart = new Chart(canvas, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'Actual Price',
+              data: actualPrices,
+              borderColor: '#3b82f6',
+              backgroundColor: 'rgba(59,130,246,0.1)',
+              borderWidth: 3,
+              pointRadius: 6,
+              pointBackgroundColor: '#3b82f6',
+              tension: 0.2,
+              fill: false,
+            },
+            {
+              label: 'P* (Fair Value)',
+              data: pStarPrices,
+              borderColor: '#f59e0b',
+              backgroundColor: 'rgba(245,158,11,0.1)',
+              borderWidth: 3,
+              borderDash: [8, 4],
+              pointRadius: 6,
+              pointBackgroundColor: '#f59e0b',
+              tension: 0.2,
+              fill: false,
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: { color: '#f1f5f9', font: { size: 14, weight: 'bold' } } }
+          },
+          scales: {
+            x: { ticks: { color: '#94a3b8', font: { size: 13 } }, grid: { color: 'rgba(71,85,105,0.3)' } },
+            y: { ticks: { color: '#94a3b8', font: { size: 13 } }, grid: { color: 'rgba(71,85,105,0.3)' }, min: 0 }
+          }
+        }
+      });
+    }
+
+    function renderFinalCharts(state) {
+      const priceCanvas = document.getElementById('finalPriceChart');
+      const irCanvas = document.getElementById('finalImpliedRChart');
+      if (!priceCanvas || !irCanvas) return;
+      if (priceChart) { priceChart.destroy(); priceChart = null; }
+      if (impliedRChart) { impliedRChart.destroy(); impliedRChart = null; }
+
+      // Price chart
+      const labels = ['Start'];
+      const actualPrices = [state.priceHistory[0] || 100];
+      const pStarPrices = [state.pStarHistory[0] || 100];
+      for (let i = 1; i <= 5; i++) {
+        labels.push('R' + i);
+        actualPrices.push(state.priceHistory[i] !== undefined ? state.priceHistory[i] : null);
+        pStarPrices.push(state.pStarHistory[i] !== undefined ? state.pStarHistory[i] : null);
+      }
+
+      priceChart = new Chart(priceCanvas, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'Actual Price',
+              data: actualPrices,
+              borderColor: '#3b82f6',
+              borderWidth: 3,
+              pointRadius: 6,
+              pointBackgroundColor: '#3b82f6',
+              tension: 0.2,
+              fill: false,
+            },
+            {
+              label: 'P* (Fair Value)',
+              data: pStarPrices,
+              borderColor: '#f59e0b',
+              borderWidth: 3,
+              borderDash: [8, 4],
+              pointRadius: 6,
+              pointBackgroundColor: '#f59e0b',
+              tension: 0.2,
+              fill: false,
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: { color: '#f1f5f9', font: { size: 13, weight: 'bold' } } },
+            title: { display: true, text: 'Price: Actual vs Fair Value', color: '#f1f5f9', font: { size: 16, weight: 'bold' } }
+          },
+          scales: {
+            x: { ticks: { color: '#94a3b8', font: { size: 12 } }, grid: { color: 'rgba(71,85,105,0.3)' } },
+            y: { ticks: { color: '#94a3b8', font: { size: 12 } }, grid: { color: 'rgba(71,85,105,0.3)' }, min: 0, suggestedMax: 250 }
+          }
+        }
+      });
+
+      // Implied r chart
+      const irLabels = ['R1', 'R2', 'R3', 'R4', 'R5'];
+      const groupColors = ['#3b82f6', '#ef4444', '#f59e0b', '#22c55e', '#a855f7'];
+      const irDatasets = [];
+      for (let g = 1; g <= 5; g++) {
+        const hist = (state.impliedRHistory && state.impliedRHistory['group' + g]) || [];
+        const data = [];
+        for (let i = 0; i < 5; i++) {
+          if (hist[i] !== undefined && hist[i] !== null) {
+            const val = typeof hist[i] === 'object' ? (hist[i].avgR || null) : hist[i];
+            data.push(val !== null ? val * 100 : null);
+          } else {
+            data.push(null);
+          }
+        }
+        irDatasets.push({
+          label: getGroupIcon(g) + ' ' + getGroupName(g),
+          data: data,
+          borderColor: groupColors[g - 1],
+          borderWidth: 2.5,
+          pointRadius: 5,
+          pointBackgroundColor: groupColors[g - 1],
+          tension: 0.2,
+          fill: false,
+          spanGaps: true,
+        });
+      }
+
+      impliedRChart = new Chart(irCanvas, {
+        type: 'line',
+        data: { labels: irLabels, datasets: irDatasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: { color: '#f1f5f9', font: { size: 12, weight: 'bold' } } },
+            title: { display: true, text: 'Implied Discount Rate (r) per Group', color: '#f1f5f9', font: { size: 16, weight: 'bold' } }
+          },
+          scales: {
+            x: { ticks: { color: '#94a3b8', font: { size: 12 } }, grid: { color: 'rgba(71,85,105,0.3)' } },
+            y: {
+              ticks: { color: '#94a3b8', font: { size: 12 }, callback: v => v + '%' },
+              grid: { color: 'rgba(71,85,105,0.3)' },
+              min: 0, suggestedMax: 20,
+              title: { display: true, text: 'r (%)', color: '#94a3b8' }
+            }
+          }
+        }
+      });
+    }
+
+    // ============================================================
+    // Main render dispatcher
+    // ============================================================
+
+    function render(state) {
+      // Determine a unique key for the current view to avoid unnecessary re-renders of charts
+      let phaseKey = state.phase + ':' + state.currentRound;
+      if (state.phase === 'reveal') {
+        phaseKey += ':' + (state.revealSubPhase || 'unknown');
+      }
+      if (state.phase === 'results' && state.currentRound >= (state.totalRounds || 5)) {
+        phaseKey = 'finalResults';
+      }
+
+      const needsFullRender = currentPhaseKey !== phaseKey;
+
+      let html = '';
+
+      switch (state.phase) {
+        case 'waiting':
+          if (!needsFullRender) return;
+          html = renderWaiting();
+          break;
+
+        case 'signal':
+          if (!needsFullRender) return;
+          html = renderSignal(state);
+          break;
+
+        case 'ordering':
+          // First render: full build. Subsequent: patch timer + order status only.
+          if (!needsFullRender) {
+            patchOrderingScreen(state);
+            return;
+          }
+          html = renderOrdering(state);
+          break;
+
+        case 'reveal':
+          switch (state.revealSubPhase) {
+            case 'followTrend':
+              html = renderRevealFollowTrend(state);
+              break;
+            case 'orderBook':
+              if (!needsFullRender) return;
+              html = renderRevealOrderBook(state);
+              break;
+            case 'matching':
+              if (!needsFullRender) return;
+              html = renderRevealMatching(state);
+              break;
+            case 'results':
+              html = renderRevealResults(state);
+              break;
+            default:
+              html = renderRevealOrderBook(state);
+              break;
+          }
+          break;
+
+        case 'results':
+          if (state.currentRound >= (state.totalRounds || 5)) {
+            html = renderFinalResults(state);
+          } else {
+            html = renderRevealResults(state);
+          }
+          break;
+
+        default:
+          html = renderWaiting();
+          break;
+      }
+
+      currentPhaseKey = phaseKey;
+      app.innerHTML = html;
+
+      // Post-render chart creation
+      requestAnimationFrame(() => {
+        if (state.phase === 'reveal' && state.revealSubPhase === 'results') {
+          renderRoundPriceChart(state);
+        }
+        if (state.phase === 'results' && state.currentRound >= (state.totalRounds || 5)) {
+          renderFinalCharts(state);
+        }
+        // Also handle non-final results phase showing chart
+        if (state.phase === 'results' && state.currentRound < 5) {
+          renderRoundPriceChart(state);
+        }
+      });
+    }
+
+    // ============================================================
+    // Follow-trend countdown timer
+    // ============================================================
+
+    let ftInterval = null;
+    function startFollowTrendCountdown() {
+      if (ftInterval) clearInterval(ftInterval);
+      ftInterval = setInterval(() => {
+        const state = store.getState();
+        if (state.phase === 'reveal' && state.revealSubPhase === 'followTrend') {
+          render(state);
+        } else {
+          clearInterval(ftInterval);
+          ftInterval = null;
+        }
+      }, 500);
+    }
+
+    // ============================================================
+    // Subscribe to state changes
+    // ============================================================
+
+    let lastPhase = '';
+    let lastSubPhase = '';
+
+    store.subscribe((state) => {
+      render(state);
+
+      // Start followTrend timer if entering that sub-phase
+      if (state.phase === 'reveal' && state.revealSubPhase === 'followTrend') {
+        if (lastSubPhase !== 'followTrend') {
+          startFollowTrendCountdown();
+        }
+      }
+
+      lastPhase = state.phase;
+      lastSubPhase = state.revealSubPhase || '';
+    });
+
+    // Initial render
+    const initialState = store.getState();
+    render(initialState);
+    if (initialState.phase === 'reveal' && initialState.revealSubPhase === 'followTrend') {
+      startFollowTrendCountdown();
+    }
+  </script>
+</body>
+</html>

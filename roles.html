@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Group Roles Guide — The Market Game</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    /* Page-specific styles */
+    .page-header {
+      background: var(--surface);
+      border-bottom: 2px solid var(--accent);
+      padding: 16px 24px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .page-header-inner {
+      max-width: 960px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .page-header h1 {
+      font-size: 1.4rem;
+      font-weight: 900;
+      background: linear-gradient(135deg, #3b82f6, #a855f7);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .back-link {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.95rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: color 0.15s;
+    }
+    .back-link:hover { color: var(--purple); }
+
+    .page-content {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 24px 16px 64px;
+    }
+
+    /* Navigation pills */
+    .role-nav {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 32px;
+      padding: 16px;
+      background: var(--surface);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+    .role-nav a {
+      text-decoration: none;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: all 0.15s;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+    }
+    .role-nav a:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.15);
+    }
+    .role-nav a.nav-pension { background: rgba(59,130,246,0.15); color: #60a5fa; border-color: rgba(59,130,246,0.3); }
+    .role-nav a.nav-hedge { background: rgba(239,68,68,0.15); color: #f87171; border-color: rgba(239,68,68,0.3); }
+    .role-nav a.nav-retail { background: rgba(245,158,11,0.15); color: #fbbf24; border-color: rgba(245,158,11,0.3); }
+    .role-nav a.nav-growth { background: rgba(34,197,94,0.15); color: #4ade80; border-color: rgba(34,197,94,0.3); }
+    .role-nav a.nav-mm { background: rgba(168,85,247,0.15); color: #c084fc; border-color: rgba(168,85,247,0.3); }
+
+    /* Section titles */
+    .section-title {
+      font-size: 1.6rem;
+      font-weight: 900;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid var(--border);
+    }
+
+    /* Role cards */
+    .role-card {
+      background: var(--surface);
+      border-radius: 16px;
+      padding: 28px;
+      margin-bottom: 24px;
+      border: 1px solid var(--border);
+      position: relative;
+      overflow: hidden;
+    }
+    .role-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+    }
+    .role-card.pension::before { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+    .role-card.hedge::before { background: linear-gradient(90deg, #ef4444, #f87171); }
+    .role-card.retail::before { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+    .role-card.growth::before { background: linear-gradient(90deg, #22c55e, #4ade80); }
+    .role-card.mm::before { background: linear-gradient(90deg, #a855f7, #c084fc); }
+
+    .role-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+    .role-icon {
+      font-size: 2.5rem;
+      width: 64px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 16px;
+      flex-shrink: 0;
+    }
+    .role-card.pension .role-icon { background: rgba(59,130,246,0.15); }
+    .role-card.hedge .role-icon { background: rgba(239,68,68,0.15); }
+    .role-card.retail .role-icon { background: rgba(245,158,11,0.15); }
+    .role-card.growth .role-icon { background: rgba(34,197,94,0.15); }
+    .role-card.mm .role-icon { background: rgba(168,85,247,0.15); }
+
+    .role-name {
+      font-size: 1.35rem;
+      font-weight: 800;
+    }
+    .role-card.pension .role-name { color: #60a5fa; }
+    .role-card.hedge .role-name { color: #f87171; }
+    .role-card.retail .role-name { color: #fbbf24; }
+    .role-card.growth .role-name { color: #4ade80; }
+    .role-card.mm .role-name { color: #c084fc; }
+
+    .role-subtitle {
+      font-size: 0.9rem;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+
+    .role-desc {
+      font-size: 1.05rem;
+      color: var(--text);
+      margin-bottom: 20px;
+      line-height: 1.6;
+      padding: 12px 16px;
+      background: var(--bg);
+      border-radius: 10px;
+      border-left: 3px solid var(--border);
+    }
+    .role-card.pension .role-desc { border-left-color: #3b82f6; }
+    .role-card.hedge .role-desc { border-left-color: #ef4444; }
+    .role-card.retail .role-desc { border-left-color: #f59e0b; }
+    .role-card.growth .role-desc { border-left-color: #22c55e; }
+    .role-card.mm .role-desc { border-left-color: #a855f7; }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    @media (max-width: 640px) {
+      .detail-grid { grid-template-columns: 1fr; }
+    }
+
+    .detail-box {
+      padding: 14px 16px;
+      border-radius: 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+    }
+    .detail-box-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+    }
+    .detail-box-value {
+      font-size: 0.95rem;
+      line-height: 1.55;
+    }
+
+    .cash-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      background: rgba(34,197,94,0.15);
+      color: var(--green);
+    }
+
+    /* Info sections */
+    .info-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      margin-bottom: 24px;
+    }
+    .info-section h2 {
+      font-size: 1.3rem;
+      font-weight: 800;
+      color: var(--accent);
+      margin-bottom: 16px;
+    }
+    .info-section h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-top: 18px;
+      margin-bottom: 8px;
+    }
+    .info-list {
+      list-style: none;
+      padding: 0;
+    }
+    .info-list li {
+      padding: 8px 0 8px 24px;
+      position: relative;
+      line-height: 1.55;
+      color: var(--text);
+    }
+    .info-list li::before {
+      content: '';
+      position: absolute;
+      left: 6px;
+      top: 16px;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+
+    .formula-box {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 20px;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 1.05rem;
+      text-align: center;
+      margin: 12px 0;
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .warning-box {
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.3);
+      border-radius: 10px;
+      padding: 14px 18px;
+      color: #fca5a5;
+      font-size: 0.95rem;
+      margin-top: 12px;
+    }
+    .warning-box strong { color: var(--red); }
+
+    /* Matching diagram */
+    .matching-diagram {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 12px;
+      align-items: center;
+      margin: 16px 0;
+    }
+    .matching-side {
+      padding: 14px;
+      border-radius: 10px;
+      text-align: center;
+      font-weight: 700;
+    }
+    .matching-buy { background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.3); color: var(--green); }
+    .matching-sell { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3); color: var(--red); }
+    .matching-arrow { font-size: 1.5rem; color: var(--text-dim); }
+
+    @media (max-width: 640px) {
+      .matching-diagram { grid-template-columns: 1fr; }
+    }
+
+    /* Smooth scroll */
+    html { scroll-behavior: smooth; }
+    :target { scroll-margin-top: 80px; }
+  </style>
+</head>
+<body>
+
+  <!-- Sticky header -->
+  <div class="page-header">
+    <div class="page-header-inner">
+      <h1>Group Roles Guide</h1>
+      <a href="index.html" class="back-link">&larr; Back to Game</a>
+    </div>
+  </div>
+
+  <div class="page-content">
+
+    <!-- Jump navigation -->
+    <nav class="role-nav">
+      <a href="#general-rules" style="background: var(--surface2); color: var(--text); border-color: var(--border);">Rules</a>
+      <a href="#how-trading-works" style="background: var(--surface2); color: var(--text); border-color: var(--border);">Trading</a>
+      <a href="#group1" class="nav-pension">1 &mdash; Pension Fund</a>
+      <a href="#group2" class="nav-hedge">2 &mdash; Hedge Fund</a>
+      <a href="#group3" class="nav-retail">3 &mdash; Retail Investors</a>
+      <a href="#group4" class="nav-growth">4 &mdash; Growth Fund</a>
+      <a href="#group5" class="nav-mm">5 &mdash; Market Maker</a>
+    </nav>
+
+    <!-- ==================== GENERAL RULES ==================== -->
+    <section id="general-rules" class="info-section">
+      <h2>General Rules</h2>
+      <ul class="info-list">
+        <li>The game consists of <strong>3 to 5 rounds</strong> (set by the tutor). Each round features a different dividend (D) and a unique market event that shapes the economic environment.</li>
+        <li>Each round follows the same sequence: <strong>See the event</strong> &rarr; <strong>Submit orders</strong> &rarr; <strong>Matching</strong> &rarr; <strong>Results</strong>.</li>
+        <li>The fundamental value of the asset is calculated as:</li>
+      </ul>
+      <div class="formula-box">P* = D / r</div>
+      <ul class="info-list">
+        <li>Where <strong>D</strong> is the current dividend and <strong>r</strong> is the discount rate reflecting the market's risk perception. Different risk perceptions yield different fundamental values.</li>
+      </ul>
+
+      <h3>Reference Table (P* for different D and r)</h3>
+      <div style="overflow-x: auto; margin: 12px 0;">
+        <table class="ref-table" style="min-width: 400px;">
+          <thead>
+            <tr>
+              <th>Discount Rate (r)</th>
+              <th>D = 4</th>
+              <th>D = 5</th>
+              <th>D = 6</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>3% (optimistic)</td><td>133</td><td>167</td><td>200</td></tr>
+            <tr><td>5% (neutral)</td><td>80</td><td>100</td><td>120</td></tr>
+            <tr><td>8% (pessimistic)</td><td>50</td><td>63</td><td>75</td></tr>
+            <tr><td>15% (panic)</td><td>27</td><td>33</td><td>40</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="warning-box">
+        <strong>Asset Floor:</strong> If a group's total assets drop below 200, that group is <strong>frozen</strong> and forced to HOLD for the remainder of the game. No further trading is allowed.
+      </div>
+
+      <ul class="info-list" style="margin-top: 14px;">
+        <li><strong>Goal:</strong> Maximize your total assets (cash + shares value + short P&amp;L) by the end of Round 5.</li>
+        <li><strong>Total Assets Formula:</strong> Cash + (Shares &times; Market Price) + Short Position Unrealized P&amp;L</li>
+        <li><strong>End of Game:</strong> Hedge Fund and Market Maker must <strong>forcibly close all positions</strong> at the final market price before final ranking. This means all shares are sold and all short positions are covered at the Round 5 clearing price.</li>
+      </ul>
+    </section>
+
+    <!-- ==================== HOW TRADING WORKS ==================== -->
+    <section id="how-trading-works" class="info-section">
+      <h2>How Trading Works</h2>
+
+      <h3>Order Submission</h3>
+      <ul class="info-list">
+        <li>All groups submit their orders <strong>simultaneously</strong> during the ordering phase. No group sees another group's order before submitting.</li>
+        <li>Each order specifies a <strong>direction</strong> (Buy, Sell, or Hold), a <strong>price</strong>, and a <strong>quantity</strong>.</li>
+      </ul>
+
+      <h3>Order Matching</h3>
+      <div class="matching-diagram">
+        <div class="matching-side matching-buy">
+          Buy orders<br>sorted highest-price first
+        </div>
+        <div class="matching-arrow">&harr;</div>
+        <div class="matching-side matching-sell">
+          Sell orders<br>sorted lowest-price first
+        </div>
+      </div>
+      <ul class="info-list">
+        <li>Buy orders are sorted from <strong>highest price first</strong>. Sell orders are sorted from <strong>lowest price first</strong>.</li>
+        <li>A trade occurs when the highest remaining buy price <strong>&ge;</strong> the lowest remaining sell price. The clearing price is the <strong>average</strong> of the matched buy and sell prices.</li>
+        <li>Matching continues until no more buy-sell pairs can cross.</li>
+      </ul>
+
+      <h3>Liquidity Crisis</h3>
+      <div class="warning-box">
+        If <strong>no trades match</strong> (all buy prices are below all sell prices), a <strong>Liquidity Crisis</strong> occurs. A reference price is calculated, but no actual trading takes place. All groups keep their current positions unchanged.
+      </div>
+    </section>
+
+    <!-- ==================== GROUP 1 — PENSION FUND ==================== -->
+    <section id="group1" class="role-card pension">
+      <div class="role-header">
+        <div class="role-icon">🏛️</div>
+        <div>
+          <div class="role-name">Group 1 — Pension Fund</div>
+          <div class="role-subtitle">Long-term Institutional Investor</div>
+        </div>
+        <div style="margin-left: auto;">
+          <span class="cash-badge">Starting Cash: 1000</span>
+        </div>
+      </div>
+
+      <div class="role-desc">
+        A long-term institutional investor focused on stable dividend income. The Pension Fund generates passive income each round through dividends, making share accumulation the key to success.
+      </div>
+
+      <div class="detail-grid">
+        <div class="detail-box">
+          <div class="detail-box-label">Special Ability &mdash; Dividend Income</div>
+          <div class="detail-box-value">
+            Earns a dividend each round calculated as:<br>
+            <strong style="color: #60a5fa;">shares x currentPrice x 2%</strong><br>
+            This amount is added directly to cash at the end of each round.
+          </div>
+        </div>
+        <div class="detail-box">
+          <div class="detail-box-label">Constraints</div>
+          <div class="detail-box-value">
+            Normal buy and sell orders only. <strong>No short selling</strong> is allowed. The Pension Fund must rely on long positions and dividend income.
+          </div>
+        </div>
+        <div class="detail-box">
+          <div class="detail-box-label">Strategy Tips</div>
+          <div class="detail-box-value">
+            Accumulate shares early to maximize compounding dividend income. Focus on buying at or below fair value. The more shares you hold, the more dividends you earn each round.
+          </div>
+        </div>
+        <div class="detail-box">
+          <div class="detail-box-label">Best Suited For</div>
+          <div class="detail-box-value">
+            Teams who prefer a conservative, income-oriented approach. Patience and valuation discipline are rewarded.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== GROUP 2 — HEDGE FUND ==================== -->
+    <section id="group2" class="role-card hedge">
+      <div class="role-header">
+        <div class="role-icon">🐺</div>
+        <div>
+          <div class="role-name">Group 2 — Hedge Fund</div>
+          <div class="role-subtitle">Aggressive Short-Selling Trader</div>
+        </div>
+        <div style="margin-left: auto;">
+          <span class="cash-badge">Starting Cash: 1000</span>
+        </div>
+      </div>
+
+      <div class="role-desc">
+        An aggressive trader with the unique ability to short sell. The Hedge Fund can profit from falling prices by opening short positions, but faces the risk of forced liquidation if losses mount.
+      </div>
+
+      <div class="detail-grid">
+        <div class="detail-box">
+          <div class="detail-box-label">Special Ability &mdash; Short Selling</div>
+          <div class="detail-box-value">
+            Can open <strong style="color: #f87171;">short positions</strong> to profit when prices drop.<br>
+            Short profit = <strong>(shortCostBasis - coverPrice) x quantity</strong>
+          </div>
+        </div>
+        <div class="detail-box">
+          <div class="detail-box-label">Constraints &mdash; Forced Liquidation</div>
+          <div class="detail-box-value">
+            If unrealized short loss exceeds <strong style="color: #f87171;">50% of the short position's value</strong>, the position is <strong>automatically covered</strong> at the current market price. This can lock in significant losses.
+            <br><br><strong style="color: #f87171;">End of Game:</strong> All short positions and shares are <strong>forcibly liquidated at the final market price</strong> at the end of Round 5 before ranking.
+          </div>
+        </div>
+        <div class="detail-box">
+          <div class="detail-box-label">Strategy Tips</div>
+          <div class="detail-box-value">
+            Use short selling to profit from overvaluation. Watch for events that may cause price drops. Be very careful of forced liquidation — avoid oversized short positions. Remember: all positions are closed at the end of the game.
+          </div>
+        </div>
+        <div class="detail-box">
+          <div class="detail-box-label">Best Suited For</div>
+          <div class="detail-box-value">
+            Teams comfortable with high-risk, high-reward strategies. Requires strong conviction on market direction and careful position sizing.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== GROUP 3 — RETAIL INVESTORS ==================== -->
+    <section id="group3" class="role-card retail">
+      <div class="role-header">
+        <div class="role-icon">😊</div>
+        <div>
+          <div class="role-name">Group 3 — Retail Investors</div>
+          <div class="role-subtitle">Emotional &amp; Trend-Following Traders</div>
+        </div>
+        <div style="margin-left: auto;">
+          <span class="cash-badge">Starting Cash: 1000</span>
+        </div>
+      </div>
+
+      <div class="role-desc">
+        Individual investors prone to emotional and trend-following behavior. Retail Investors have two unique modes that can give them an edge — but they must choose wisely each round.
+      </div>
+
+      <div class="detail-grid">
+        <div class="detail-box">
+          <div class="detail-box-label">Special Ability 1 &mdash; Emotion Mode</div>
+          <div class="detail-box-value">
+            If your quantity equals the <strong>maximum affordable</strong> (all cash used on the order), you can add <strong style="color: #fbbf24;">1 extra "emotion share"</strong> at the same price and direction — effectively going beyond your budget.
+          </div>
+        </div>
+        <div class="detail-box">
+          <div class="detail-box-label">Special Ability 2 &mdash; Follow Trend Mode</div>
+          <div class="detail-box-value">
+            After all groups reveal their <strong>directions</strong> (but not price or quantity), Retail gets <strong style="color: #fbbf24;">10 extra seconds</strong> to change their direction and price. However, round profit is multiplied by <strong>0.9</strong> (10% penalty).
+          </div>
+        </div>
+        <div class="detail-box">
+          <div class="detail-box-label">Constraints</div>
+          <div class="detail-box-value">
+            The two modes are <strong>mutually exclusive</strong> per round. You must choose one mode or neither each round — you cannot use both at the same time.
+          </div>
+        </div>
+        <div class="detail-box">
+          <div class="detail-box-label">Strategy Tips</div>
+          <div class="detail-box-value">
+            Emotion Mode rewards going all-in with conviction. Follow Trend Mode lets you react to other groups' directions at the cost of 10% profit. Choose based on your confidence level each round.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== GROUP 4 — GROWTH FUND ==================== -->
+    <section id="group4" class="role-card growth">
+      <div class="role-header">
+        <div class="role-icon">🚀</div>
+        <div>
+          <div class="role-name">Group 4 — Growth Fund</div>
+          <div class="role-subtitle">Momentum Investor with Directional Bonus</div>
+        </div>
+        <div style="margin-left: auto;">
+          <span class="cash-badge">Starting Cash: 1000</span>
+        </div>
+      </div>
+
+      <div class="role-desc">
+        A momentum investor that benefits from correct directional bets. When the Growth Fund correctly predicts whether the market will rise or fall, its profits receive a significant multiplier bonus.
+      </div>
+
+      <div class="detail-grid">
+        <div class="detail-box">
+          <div class="detail-box-label">Special Ability &mdash; Directional Bonus</div>
+          <div class="detail-box-value">
+            If clearing price <strong>&gt;</strong> last price AND group <strong>bought</strong>: profit <strong style="color: #4ade80;">x 1.3</strong><br>
+            If clearing price <strong>&lt;</strong> last price AND group <strong>sold</strong>: profit <strong style="color: #4ade80;">x 1.3</strong><br>
+            No bonus if direction was wrong.
+          </div>
+        </div>
+        <div class="detail-box">
+          <div class="detail-box-label">Constraints</div>
+          <div class="detail-box-value">
+            Normal buy and sell orders only. The 1.3x bonus <strong>only applies</strong> when the group's trading direction matches the actual market price movement. Wrong calls get no bonus.
+          </div>
+        </div>
+        <div class="detail-box">
+          <div class="detail-box-label">Strategy Tips</div>
+          <div class="detail-box-value">
+            Focus on predicting market direction. Buy before expected price increases and sell before expected decreases to trigger the 1.3x bonus. Read the market events carefully for directional clues.
+          </div>
+        </div>
+        <div class="detail-box">
+          <div class="detail-box-label">Best Suited For</div>
+          <div class="detail-box-value">
+            Teams who are good at reading market signals and anticipating price movements. Rewards conviction and correct market analysis.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== GROUP 5 — MARKET MAKER ==================== -->
+    <section id="group5" class="role-card mm">
+      <div class="role-header">
+        <div class="role-icon">🏦</div>
+        <div>
+          <div class="role-name">Group 5 — Market Maker</div>
+          <div class="role-subtitle">Liquidity Provider &amp; Spread Trader</div>
+        </div>
+        <div style="margin-left: auto;">
+          <span class="cash-badge">Starting Cash: 1000 + 500 credit line</span>
+        </div>
+      </div>
+
+      <div class="role-desc">
+        A liquidity provider that profits from the bid-ask spread. The Market Maker must quote both sides of the market every round, earning money from the difference between their buy and sell prices.
+      </div>
+
+      <div class="detail-grid">
+        <div class="detail-box">
+          <div class="detail-box-label">Special Ability &mdash; Two-Sided Quoting</div>
+          <div class="detail-box-value">
+            Must submit <strong>both</strong> a bid (buy) and an ask (sell) every round. Profits from the <strong style="color: #c084fc;">spread</strong> between the bid and ask prices when trades are matched on either side.
+          </div>
+        </div>
+        <div class="detail-box">
+          <div class="detail-box-label">Constraints</div>
+          <div class="detail-box-value">
+            <strong>Ask must always be greater than Bid.</strong> Cannot submit single-sided orders. <strong style="color: #f87171;">End of Game:</strong> All remaining shares are <strong>forcibly sold at the final market price</strong> at the end of Round 5 before ranking.
+          </div>
+        </div>
+        <div class="detail-box">
+          <div class="detail-box-label">Extra Benefit &mdash; Credit Line</div>
+          <div class="detail-box-value">
+            Receives a <strong style="color: #c084fc;">500 credit line</strong> on top of the standard 1000 starting cash, giving <strong>1500 usable cash</strong> for trading. However, the credit line is <strong>not counted as own assets</strong> — starting total assets = 1000, and the 500 must be "returned" at final ranking.
+          </div>
+        </div>
+        <div class="detail-box">
+          <div class="detail-box-label">Strategy Tips</div>
+          <div class="detail-box-value">
+            Set a wide enough spread to profit on each matched trade, but narrow enough that your orders actually get filled. Keep inventory balanced — too many shares or too much cash reduces efficiency.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <div style="text-align: center; padding: 24px 0; color: var(--text-dim); font-size: 0.85rem;">
+      <a href="index.html" class="back-link">&larr; Back to Game</a>
+    </div>
+
+  </div>
+
+</body>
+</html>
