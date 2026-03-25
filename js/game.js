@@ -192,7 +192,7 @@ function runMatching(orders, currentPrice, D) {
     referencePrice = Math.round((hBid + lAsk) / 2 * 10) / 10;
   }
 
-  return { trades, clearingPrice, referencePrice, noTrade, buys, sells, midPrice };
+  return { trades, clearingPrice, referencePrice, noTrade, buys, sells };
 }
 
 function settlePortfolio(portfolio, order, matchResult, role, D, previousPrice) {
