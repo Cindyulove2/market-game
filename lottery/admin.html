@@ -239,11 +239,21 @@
       });
     }
 
+    // Ensure pools have valid structure (Firebase drops empty arrays)
+    function normalizePools(pools) {
+      var p = pools || {};
+      if (!p.A) p.A = { name: 'Group A', prizes: [] };
+      if (!p.B) p.B = { name: 'Group B', prizes: [] };
+      if (!Array.isArray(p.A.prizes)) p.A.prizes = [];
+      if (!Array.isArray(p.B.prizes)) p.B.prizes = [];
+      return p;
+    }
+
     function renderAll(state) {
       if (isSaving) return;
 
-      const pools = state.pools || {};
-      const draws = state.draws || [];
+      const pools = normalizePools(state.pools);
+      const draws = Array.isArray(state.draws) ? state.draws : [];
 
       // Pool names
       poolNameA.value = (pools.A && pools.A.name) || 'Group A';
@@ -269,7 +279,7 @@
       const field = e.target.dataset.field;
 
       const state = lotteryStore.getState();
-      const pools = JSON.parse(JSON.stringify(state.pools || {}));
+      const pools = normalizePools(JSON.parse(JSON.stringify(state.pools || {})));
 
       if (!pools[poolId] || !pools[poolId].prizes[idx]) return;
 
@@ -289,7 +299,7 @@
       const idx = parseInt(e.target.dataset.idx || e.currentTarget.dataset.idx, 10);
 
       const state = lotteryStore.getState();
-      const pools = JSON.parse(JSON.stringify(state.pools || {}));
+      const pools = normalizePools(JSON.parse(JSON.stringify(state.pools || {})));
 
       if (!pools[poolId] || !pools[poolId].prizes) return;
 
@@ -299,11 +309,7 @@
 
     function addPrize(poolId) {
       const state = lotteryStore.getState();
-      const pools = JSON.parse(JSON.stringify(state.pools || {}));
-
-      if (!pools[poolId]) {
-        pools[poolId] = { name: poolId === 'A' ? 'Group A' : 'Group B', prizes: [] };
-      }
+      const pools = normalizePools(JSON.parse(JSON.stringify(state.pools || {})));
 
       pools[poolId].prizes.push({ name: '', qty: 1 });
       lotteryStore.setState({ pools: pools });
@@ -312,8 +318,7 @@
     // Pool name editing
     poolNameA.addEventListener('change', () => {
       const state = lotteryStore.getState();
-      const pools = JSON.parse(JSON.stringify(state.pools || {}));
-      if (!pools.A) pools.A = { name: 'Group A', prizes: [] };
+      const pools = normalizePools(JSON.parse(JSON.stringify(state.pools || {})));
       pools.A.name = poolNameA.value || 'Group A';
       isSaving = true;
       lotteryStore.setState({ pools: pools });
@@ -322,8 +327,7 @@
 
     poolNameB.addEventListener('change', () => {
       const state = lotteryStore.getState();
-      const pools = JSON.parse(JSON.stringify(state.pools || {}));
-      if (!pools.B) pools.B = { name: 'Group B', prizes: [] };
+      const pools = normalizePools(JSON.parse(JSON.stringify(state.pools || {})));
       pools.B.name = poolNameB.value || 'Group B';
       isSaving = true;
       lotteryStore.setState({ pools: pools });
