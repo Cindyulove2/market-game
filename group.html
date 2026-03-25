@@ -1111,14 +1111,19 @@
             selectedRetailMode = this.getAttribute('data-mode');
             modeBtns.forEach(function(b) { b.classList.remove('active'); });
             this.classList.add('active');
-            // Emotion mode auto-switches to market order
+            // Emotion mode auto-switches to market order; follow-trend resets to limit
             if (selectedRetailMode === 'emotion') {
               selectedOrderType = 'market';
               otBtns.forEach(function(b) { b.classList.remove('active'); });
               var mktBtn = document.getElementById('otypeMarket');
               if (mktBtn) mktBtn.classList.add('active');
-              updateOrderTypeUI();
+            } else {
+              selectedOrderType = 'limit';
+              otBtns.forEach(function(b) { b.classList.remove('active'); });
+              var limBtn = document.getElementById('otypeLimit');
+              if (limBtn) limBtn.classList.add('active');
             }
+            updateOrderTypeUI();
             checkEmotionExtra();
           });
         });

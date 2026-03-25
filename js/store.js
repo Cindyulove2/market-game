@@ -83,17 +83,21 @@ class GameStore {
     return initial;
   }
 
-  // Write to Firebase with debounce (batches rapid writes like timer ticks)
-  _firebaseWrite(data) {
-    this._pendingWrite = data;
+  // Partial update to Firebase with debounce — only writes changed fields,
+  // so it won't overwrite concurrent writes from other devices (e.g. order submissions)
+  _firebaseUpdate(updates) {
+    // Merge pending updates
+    if (!this._pendingUpdates) this._pendingUpdates = {};
+    Object.assign(this._pendingUpdates, updates);
+
     if (!this._writeTimer) {
       this._writeTimer = setTimeout(() => {
-        if (this._pendingWrite && this._dbRef) {
-          this._dbRef.set(this._pendingWrite);
+        if (this._pendingUpdates && this._dbRef) {
+          this._dbRef.update(this._pendingUpdates);
         }
-        this._pendingWrite = null;
+        this._pendingUpdates = null;
         this._writeTimer = null;
-      }, 150); // 150ms debounce — fast enough for UI, prevents flooding
+      }, 200);
     }
   }
 
@@ -117,7 +121,9 @@ class GameStore {
       if (immediate) {
         this._firebaseWriteNow(next);
       } else {
-        this._firebaseWrite(next);
+        // Use update() for partial writes (e.g. timer ticks) to avoid overwriting
+        // concurrent writes from other devices
+        this._firebaseUpdate(updates);
       }
     } else {
       if (this._channel) this._channel.postMessage({ type: 'stateUpdate' });
@@ -149,6 +155,8 @@ class GameStore {
 
   subscribe(fn) {
     this.listeners.push(fn);
+    // Immediately call with current state so subscriber doesn't miss Firebase's first load
+    try { fn(this.getState()); } catch(e) {}
     return () => { this.listeners = this.listeners.filter(l => l !== fn); };
   }
 

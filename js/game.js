@@ -121,17 +121,24 @@ function runMatching(orders, currentPrice, D) {
     if (!order || order.direction === 'hold') return;
     const isMarket = order.orderType === 'market';
     const ts = order.submittedAt || 0;
+    // Coerce types — Firebase may return strings
+    const oPrice = Number(order.price) || 0;
+    const oQty = Number(order.quantity) || 0;
+    const oBidPrice = Number(order.bidPrice) || 0;
+    const oBidQty = Number(order.bidQty) || 0;
+    const oAskPrice = Number(order.askPrice) || 0;
+    const oAskQty = Number(order.askQty) || 0;
 
     if (order.role === 'marketmaker') {
-      buys.push({ groupId: order.groupId, price: order.bidPrice, qty: order.bidQty, role: 'marketmaker', isMarket: false, ts });
-      sells.push({ groupId: order.groupId, price: order.askPrice, qty: order.askQty, role: 'marketmaker', isMarket: false, ts });
+      if (oBidQty > 0) buys.push({ groupId: order.groupId, price: oBidPrice, qty: oBidQty, role: 'marketmaker', isMarket: false, ts });
+      if (oAskQty > 0) sells.push({ groupId: order.groupId, price: oAskPrice, qty: oAskQty, role: 'marketmaker', isMarket: false, ts });
     } else {
-      if (order.direction === 'buy') {
-        const sortPrice = isMarket ? MARKET_ORDER_BUY_PRICE : order.price;
-        buys.push({ groupId: order.groupId, price: sortPrice, qty: order.quantity, role: order.role, isMarket, ts });
-      } else if (order.direction === 'sell') {
-        const sortPrice = isMarket ? MARKET_ORDER_SELL_PRICE : order.price;
-        sells.push({ groupId: order.groupId, price: sortPrice, qty: order.quantity, role: order.role, isMarket, ts });
+      if (order.direction === 'buy' && oQty > 0) {
+        const sortPrice = isMarket ? MARKET_ORDER_BUY_PRICE : oPrice;
+        buys.push({ groupId: order.groupId, price: sortPrice, qty: oQty, role: order.role, isMarket, ts });
+      } else if (order.direction === 'sell' && oQty > 0) {
+        const sortPrice = isMarket ? MARKET_ORDER_SELL_PRICE : oPrice;
+        sells.push({ groupId: order.groupId, price: sortPrice, qty: oQty, role: order.role, isMarket, ts });
       }
     }
   });

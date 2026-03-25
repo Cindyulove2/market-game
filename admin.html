@@ -178,6 +178,10 @@
         <!-- Timer -->
         <div class="control-section">
           <h3>Timer</h3>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <label style="font-size:0.85rem;color:var(--text-dim);white-space:nowrap;">Duration (s):</label>
+            <input type="number" id="timerDurationInput" min="10" max="300" step="10" value="60" style="width:80px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:0.95rem;" onchange="updateTimerDuration()">
+          </div>
           <div class="timer" id="timerDisplay">1:00</div>
           <div class="timer-controls">
             <button class="btn btn-sm btn-green" id="btnTimerStart" onclick="startTimer()">Start</button>
@@ -317,6 +321,15 @@ function updateTotalRounds() {
   }
 }
 
+// ---- Timer Duration ----
+
+let timerDuration = 60; // default seconds
+
+function updateTimerDuration() {
+  const val = parseInt(document.getElementById('timerDurationInput').value, 10) || 60;
+  timerDuration = Math.max(10, Math.min(300, val));
+}
+
 // ---- Timer Logic ----
 
 function startTimer() {
@@ -355,7 +368,7 @@ function resetTimer() {
     clearInterval(timerInterval);
     timerInterval = null;
   }
-  store.setState({ timerSeconds: 60, timerRunning: false });
+  store.setState({ timerSeconds: timerDuration, timerRunning: false });
 }
 
 // ---- Phase Actions ----
@@ -368,7 +381,7 @@ function startRound() {
     phase: 'signal',
     orders: { group1: null, group2: null, group3: null, group4: null, group5: null },
     matchingResults: { trades: [], clearingPrice: null, referencePrice: null, noTrade: false },
-    timerSeconds: 60,
+    timerSeconds: timerDuration,
     timerRunning: false,
     revealSubPhase: null,
     followTrendActive: false,
@@ -382,7 +395,7 @@ function openOrdering() {
   if (state.phase !== 'signal') return;
   store.setState({
     phase: 'ordering',
-    timerSeconds: 60,
+    timerSeconds: timerDuration,
     timerRunning: false,
   }, true);
   // Auto-start timer
@@ -588,7 +601,7 @@ function nextRound() {
     phase: 'waiting',
     orders: { group1: null, group2: null, group3: null, group4: null, group5: null },
     matchingResults: { trades: [], clearingPrice: null, referencePrice: null, noTrade: false },
-    timerSeconds: 60,
+    timerSeconds: timerDuration,
     timerRunning: false,
     revealSubPhase: null,
     followTrendActive: false,
