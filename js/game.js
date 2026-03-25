@@ -119,27 +119,51 @@ function runMatching(orders, currentPrice, D) {
   Object.values(orders).forEach(order => {
     if (!order || order.direction === 'hold') return;
     const isMarket = order.orderType === 'market';
+    const ts = order.submittedAt || 0;
 
     if (order.role === 'marketmaker') {
-      // Market maker always uses limit orders
-      buys.push({ groupId: order.groupId, price: order.bidPrice, qty: order.bidQty, role: 'marketmaker', isMarket: false });
-      sells.push({ groupId: order.groupId, price: order.askPrice, qty: order.askQty, role: 'marketmaker', isMarket: false });
+      buys.push({ groupId: order.groupId, price: order.bidPrice, qty: order.bidQty, role: 'marketmaker', isMarket: false, ts });
+      sells.push({ groupId: order.groupId, price: order.askPrice, qty: order.askQty, role: 'marketmaker', isMarket: false, ts });
     } else {
       if (order.direction === 'buy') {
-        let qty = order.quantity;
         const sortPrice = isMarket ? MARKET_ORDER_BUY_PRICE : order.price;
-        buys.push({ groupId: order.groupId, price: sortPrice, qty, role: order.role, isMarket });
+        buys.push({ groupId: order.groupId, price: sortPrice, qty: order.quantity, role: order.role, isMarket, ts });
       } else if (order.direction === 'sell') {
         const sortPrice = isMarket ? MARKET_ORDER_SELL_PRICE : order.price;
-        sells.push({ groupId: order.groupId, price: sortPrice, qty: order.quantity, role: order.role, isMarket });
+        sells.push({ groupId: order.groupId, price: sortPrice, qty: order.quantity, role: order.role, isMarket, ts });
       }
     }
   });
 
-  // Sort: buys descending (market orders first), sells ascending (market orders first)
-  buys.sort((a, b) => b.price - a.price);
-  sells.sort((a, b) => a.price - b.price);
+  // Sort: buys descending by price, then by submission time (earlier first) for same price
+  buys.sort((a, b) => b.price - a.price || a.ts - b.ts);
+  // Sort: sells ascending by price, then by submission time (earlier first) for same price
+  sells.sort((a, b) => a.price - b.price || a.ts - b.ts);
 
+  // Determine best bid and best ask (ignoring market order sentinels)
+  const bestBid = buys.length > 0 ? (buys[0].isMarket ? null : buys[0].price) : null;
+  const bestAsk = sells.length > 0 ? (sells[0].isMarket ? null : sells[0].price) : null;
+
+  // Find first real (non-market) bid and ask for midpoint calculation
+  let realBestBid = null, realBestAsk = null;
+  for (let i = 0; i < buys.length; i++) { if (!buys[i].isMarket) { realBestBid = buys[i].price; break; } }
+  for (let i = 0; i < sells.length; i++) { if (!sells[i].isMarket) { realBestAsk = sells[i].price; break; } }
+
+  // Compute the single clearing price: midpoint of best bid and best ask
+  // Fallback rules for edge cases
+  let midPrice;
+  if (realBestBid !== null && realBestAsk !== null) {
+    midPrice = Math.round((realBestBid + realBestAsk) / 2 * 10) / 10;
+  } else if (realBestBid !== null) {
+    midPrice = realBestBid;
+  } else if (realBestAsk !== null) {
+    midPrice = realBestAsk;
+  } else {
+    midPrice = currentPrice; // all market orders, use current price
+  }
+
+  // Match orders: pairs execute if buy price >= sell price
+  // All trades execute at the single midPrice
   let trades = [];
   let bi = 0, si = 0;
 
@@ -148,26 +172,12 @@ function runMatching(orders, currentPrice, D) {
     const sell = sells[si];
 
     if (buy.price >= sell.price) {
-      // Determine execution price:
-      // Market buy + limit sell → sell price
-      // Limit buy + market sell → buy price
-      // Market buy + market sell → currentPrice
-      // Limit buy + limit sell → midpoint
-      let execPrice;
-      if (buy.isMarket && sell.isMarket) {
-        execPrice = currentPrice;
-      } else if (buy.isMarket) {
-        execPrice = sell.price;
-      } else if (sell.isMarket) {
-        execPrice = buy.price;
-      } else {
-        execPrice = (buy.price + sell.price) / 2;
-      }
-      execPrice = Math.round(execPrice * 10) / 10;
-
       const qty = Math.min(buy.qty, sell.qty);
-      trades.push({ buyer: buy.groupId, seller: sell.groupId, price: execPrice, qty,
-                     buyerIsMarket: buy.isMarket, sellerIsMarket: sell.isMarket });
+      trades.push({
+        buyer: buy.groupId, seller: sell.groupId,
+        price: midPrice, qty,
+        buyerIsMarket: buy.isMarket, sellerIsMarket: sell.isMarket
+      });
       buys[bi] = { ...buy, qty: buy.qty - qty };
       sells[si] = { ...sell, qty: sell.qty - qty };
       if (buys[bi].qty === 0) bi++;
@@ -182,18 +192,15 @@ function runMatching(orders, currentPrice, D) {
   let noTrade = false;
 
   if (trades.length > 0) {
-    clearingPrice = trades[trades.length - 1].price;
+    clearingPrice = midPrice;
   } else {
     noTrade = true;
-    // For reference price, ignore market order sentinels
-    const realBuys = buys.filter(b => !b.isMarket && b.qty > 0);
-    const realSells = sells.filter(s => !s.isMarket && s.qty > 0);
-    const highestBid = realBuys.length > 0 ? realBuys[0].price : currentPrice * 0.7;
-    const lowestAsk = realSells.length > 0 ? realSells[0].price : currentPrice * 1.3;
-    referencePrice = Math.round((highestBid + lowestAsk) / 2 * 10) / 10;
+    const hBid = realBestBid !== null ? realBestBid : currentPrice * 0.7;
+    const lAsk = realBestAsk !== null ? realBestAsk : currentPrice * 1.3;
+    referencePrice = Math.round((hBid + lAsk) / 2 * 10) / 10;
   }
 
-  return { trades, clearingPrice, referencePrice, noTrade, buys, sells };
+  return { trades, clearingPrice, referencePrice, noTrade, buys, sells, midPrice };
 }
 
 function settlePortfolio(portfolio, order, matchResult, role, D, previousPrice) {
