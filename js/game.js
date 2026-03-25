@@ -95,7 +95,8 @@ function createInitialState() {
     timerRunning: false,
     orders: { group1: null, group2: null, group3: null, group4: null, group5: null },
     matchingResults: { trades: [], clearingPrice: null, referencePrice: null, noTrade: false },
-    currentPrice: 100,
+    currentPrice: 100,      // = marketPrice, updated every round
+    lastTradePrice: 100,   // = VWAP, only updated when trades occur
     priceHistory: [100],
     pStarHistory: [100],
     portfolios,
@@ -177,27 +178,33 @@ function runMatching(orders, currentPrice, D) {
     }
   }
 
-  let clearingPrice = null;
-  let referencePrice = null;
+  let lastTradePrice = null;  // VWAP of actual trades, null if no trades
+  let marketPrice = null;      // always set — used for asset valuation
   let noTrade = false;
 
   if (trades.length > 0) {
-    clearingPrice = trades[trades.length - 1].price;
+    // VWAP = Σ(price × qty) / Σ(qty)
+    const totalValue = trades.reduce((s, t) => s + t.price * t.qty, 0);
+    const totalQty = trades.reduce((s, t) => s + t.qty, 0);
+    lastTradePrice = Math.round(totalValue / totalQty * 10) / 10;
+    marketPrice = lastTradePrice;
   } else {
     noTrade = true;
+    // Market price from order book: midpoint of best bid and best ask
     const realBuys = buys.filter(b => !b.isMarket && b.qty > 0);
     const realSells = sells.filter(s => !s.isMarket && s.qty > 0);
     const hBid = realBuys.length > 0 ? realBuys[0].price : currentPrice * 0.7;
     const lAsk = realSells.length > 0 ? realSells[0].price : currentPrice * 1.3;
-    referencePrice = Math.round((hBid + lAsk) / 2 * 10) / 10;
+    marketPrice = Math.round((hBid + lAsk) / 2 * 10) / 10;
+    // lastTradePrice stays null — no actual trades
   }
 
-  return { trades, clearingPrice, referencePrice, noTrade, buys, sells };
+  return { trades, lastTradePrice, marketPrice, noTrade, buys, sells };
 }
 
 function settlePortfolio(portfolio, order, matchResult, role, D, previousPrice) {
-  const { trades, clearingPrice, referencePrice, noTrade } = matchResult;
-  const price = clearingPrice || referencePrice;
+  const { trades, marketPrice, noTrade } = matchResult;
+  const price = marketPrice;  // always use marketPrice for asset valuation
   const p = { ...portfolio };
 
   if (!order) {

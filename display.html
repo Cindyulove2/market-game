@@ -812,14 +812,15 @@
       const noTrade = mr.noTrade;
 
       if (noTrade) {
-        const refPrice = mr.referencePrice || '—';
+        const mktPrice = mr.marketPrice || state.currentPrice || '—';
         return `
           <div class="reveal-screen phase-container">
             <div class="crisis-banner crisis-full" style="min-height:60vh; animation: pulse 1.5s infinite;">
               <div class="crisis-icon">&#9888;&#65039;</div>
               <div class="crisis-text">LIQUIDITY CRISIS</div>
               <div class="crisis-sub">No trades could be matched this round</div>
-              <div class="crisis-ref">Reference Price (indicative): <span style="color:var(--text-dim);">${refPrice}</span></div>
+              <div class="crisis-ref">Last Trade Price: <span style="color:var(--red);">No trades</span></div>
+              <div class="crisis-ref" style="margin-top:8px;">Market Price (order book): <span style="color:var(--accent);">${mktPrice}</span></div>
             </div>
           </div>`;
       }
@@ -845,10 +846,11 @@
     function renderRevealResults(state) {
       const round = getRoundData(state.currentRound);
       const mr = state.matchingResults || {};
-      const clearingPrice = mr.clearingPrice || mr.referencePrice || state.currentPrice;
+      const mktPrice = mr.marketPrice || state.currentPrice;
+      const lastTP = mr.lastTradePrice;
       const pStar = round.pStar;
-      const devColor = deviationColor(clearingPrice, pStar);
-      const devPct = deviationPct(clearingPrice, pStar);
+      const devColor = deviationColor(mktPrice, pStar);
+      const devPct = deviationPct(mktPrice, pStar);
       const D = round.D;
 
       // Implied r cards
@@ -904,11 +906,12 @@
           <div class="reveal-title">ROUND ${state.currentRound} RESULTS</div>
           <div class="results-grid">
             <div class="card">
-              <div class="card-title text-center">Clearing Price vs P*</div>
+              <div class="card-title text-center">Market Price vs P*</div>
+              ${lastTP ? '<div class="text-center text-dim mb-1" style="font-size:0.85rem;">Last Trade Price (VWAP): <strong>' + lastTP + '</strong></div>' : '<div class="text-center text-dim mb-1" style="font-size:0.85rem;">No trades this round</div>'}
               <div class="price-comparison">
                 <div class="price-box">
-                  <div class="label">Clearing Price</div>
-                  <div class="value text-accent">${clearingPrice}</div>
+                  <div class="label">Market Price</div>
+                  <div class="value text-accent">${mktPrice}</div>
                 </div>
                 <div class="price-vs">vs</div>
                 <div class="price-box">
@@ -918,7 +921,7 @@
               </div>
               <div class="text-center">
                 <span class="deviation-badge deviation-${devColor}">
-                  ${devPct === 0 ? 'Exact match!' : (clearingPrice > pStar ? '+' : '-') + devPct + '% deviation'}
+                  ${devPct === 0 ? 'Exact match!' : (mktPrice > pStar ? '+' : '-') + devPct + '% deviation'}
                 </span>
               </div>
             </div>

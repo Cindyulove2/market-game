@@ -465,7 +465,7 @@
       var rd = ROUNDS[state.currentRound - 1];
       var pf = state.portfolios[groupKey];
       var mr = state.matchingResults;
-      var price = mr.clearingPrice || mr.referencePrice || state.currentPrice;
+      var mktPrice = mr.marketPrice || state.currentPrice;
 
       var html = '';
 
@@ -475,16 +475,17 @@
         html += '<div class="phase-banner phase-results">Round ' + state.currentRound + ' Results</div>';
       }
 
-      // Clearing price
+      // Price info
       html += '<div class="card">';
-      html += '<div class="card-title">Clearing Price</div>';
       if (mr.noTrade) {
         html += '<div class="crisis-banner" style="animation:none;font-size:1rem;">LIQUIDITY CRISIS — No trades matched this round</div>';
-        html += '<div class="text-center text-dim mt-1">Reference price (indicative only): ' + (mr.referencePrice || '-') + '</div>';
+        html += '<div class="text-center mt-2"><span class="text-dim">Last Trade Price:</span> <span class="fw-bold">No trades</span></div>';
+        html += '<div class="text-center mt-1"><span class="text-dim">Market Price (from order book):</span> <span class="fw-bold text-accent">' + mktPrice + '</span></div>';
       } else {
-        html += '<div class="text-center text-2xl fw-black">' + price + '</div>';
+        html += '<div class="card-title">Trade Price (VWAP)</div>';
+        html += '<div class="text-center text-2xl fw-black">' + (mr.lastTradePrice || mktPrice) + '</div>';
         var pStar = rd.pStar;
-        var diff = price - pStar;
+        var diff = mktPrice - pStar;
         var pct = pStar > 0 ? Math.round(Math.abs(diff) / pStar * 100) : 0;
         var diffClass = Math.abs(pct) <= 10 ? 'text-green' : (Math.abs(pct) <= 20 ? 'text-orange' : 'text-red');
         html += '<div class="text-center ' + diffClass + ' mt-1">P* = ' + pStar + ' (' + (diff >= 0 ? '+' : '') + diff.toFixed(1) + ', ' + pct + '% ' + (diff >= 0 ? 'above' : 'below') + ')</div>';

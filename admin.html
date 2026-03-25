@@ -517,7 +517,8 @@ function executeMatching() {
   // Run matching
   const matchResult = runMatching(state.orders, state.currentPrice, D);
 
-  const newPrice = matchResult.clearingPrice || matchResult.referencePrice;
+  const newMarketPrice = matchResult.marketPrice;
+  const newLastTradePrice = matchResult.lastTradePrice; // null if no trades
 
   // Settle each portfolio
   const portfolios = {};
@@ -550,7 +551,7 @@ function executeMatching() {
   }
 
   // Update price history (Firebase may drop arrays)
-  const priceHistory = [...(state.priceHistory || [100]), newPrice];
+  const priceHistory = [...(state.priceHistory || [100]), newMarketPrice];
   const pStarHistory = [...(state.pStarHistory || [100]), roundData.pStar];
 
   // Store orders in allOrders for final results
@@ -562,8 +563,8 @@ function executeMatching() {
     revealSubPhase: 'results',
     matchingResults: {
       trades: matchResult.trades,
-      clearingPrice: matchResult.clearingPrice,
-      referencePrice: matchResult.referencePrice,
+      lastTradePrice: matchResult.lastTradePrice,
+      marketPrice: matchResult.marketPrice,
       noTrade: matchResult.noTrade,
     },
     portfolios,
@@ -571,7 +572,8 @@ function executeMatching() {
     impliedRHistory,
     priceHistory,
     pStarHistory,
-    currentPrice: newPrice,
+    currentPrice: newMarketPrice,
+    lastTradePrice: newLastTradePrice !== null ? newLastTradePrice : (state.lastTradePrice || 100),
     allOrders,
   }, true);
   } catch(e) { alert('executeMatching error: ' + e.message + '\n' + e.stack); }
