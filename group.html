@@ -876,17 +876,29 @@
       return buildStandardForm(state, rd, pf);
     }
 
+    // ─── Order type toggle (market/limit) builder ───
+    function buildOrderTypeToggle() {
+      var html = '<div class="form-group"><label>Order Type</label></div>';
+      html += '<div class="mode-toggle" id="orderTypeToggle">';
+      html += '<button class="mode-btn active" data-otype="limit" id="otypeLimit">LIMIT ORDER</button>';
+      html += '<button class="mode-btn" data-otype="market" id="otypeMarket">MARKET ORDER</button>';
+      html += '</div>';
+      html += '<div id="marketOrderNote" class="hidden" style="background:rgba(251,191,36,0.1);border:1px solid var(--orange);border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:0.85rem;color:var(--orange);">Market order: executes at the best available price. No price input needed.</div>';
+      return html;
+    }
+
     // ─── Standard form (pension, growth) ───
     function buildStandardForm(state, rd, pf) {
       var html = '<div class="card">';
       html += '<div class="card-title">Place Order</div>';
+      html += buildOrderTypeToggle();
       html += '<div class="btn-group mb-2">';
       html += '<button class="dir-btn" data-dir="buy" id="dirBuy">BUY</button>';
       html += '<button class="dir-btn" data-dir="sell" id="dirSell">SELL</button>';
       html += '<button class="dir-btn" data-dir="hold" id="dirHold">HOLD</button>';
       html += '</div>';
       html += '<div id="priceQtyFields">';
-      html += '<div class="form-group"><label>Price</label><input type="number" id="orderPrice" min="1" step="0.1" placeholder="Enter price"></div>';
+      html += '<div id="priceField" class="form-group"><label>Price</label><input type="number" id="orderPrice" min="1" step="0.1" placeholder="Enter price"></div>';
       html += '<div class="form-group"><label>Quantity (max 5)</label><input type="number" id="orderQty" min="1" max="5" step="1" placeholder="Number of shares"></div>';
       html += '</div>';
       html += '<div class="validation-error" id="orderError"></div>';
@@ -900,8 +912,8 @@
       var html = '<div class="card">';
       html += '<div class="card-title">Place Order</div>';
 
-      // Order type toggle
-      html += '<div class="form-group"><label>Order Type</label></div>';
+      // Position type toggle
+      html += '<div class="form-group"><label>Position Type</label></div>';
       html += '<div class="mode-toggle" id="hedgeTypeToggle">';
       html += '<button class="mode-btn active" data-type="normal" id="typeNormal">Normal</button>';
       html += '<button class="mode-btn" data-type="short" id="typeShort">Open Short</button>';
@@ -910,13 +922,16 @@
       }
       html += '</div>';
 
+      // Market/limit toggle
+      html += buildOrderTypeToggle();
+
       html += '<div class="btn-group mb-2" id="dirGroup">';
       html += '<button class="dir-btn" data-dir="buy" id="dirBuy">BUY</button>';
       html += '<button class="dir-btn" data-dir="sell" id="dirSell">SELL</button>';
       html += '<button class="dir-btn" data-dir="hold" id="dirHold">HOLD</button>';
       html += '</div>';
       html += '<div id="priceQtyFields">';
-      html += '<div class="form-group"><label>Price</label><input type="number" id="orderPrice" min="1" step="0.1" placeholder="Enter price"></div>';
+      html += '<div id="priceField" class="form-group"><label>Price</label><input type="number" id="orderPrice" min="1" step="0.1" placeholder="Enter price"></div>';
       html += '<div class="form-group"><label>Quantity (max 5)</label><input type="number" id="orderQty" min="1" max="5" step="1" placeholder="Number of shares"></div>';
       html += '</div>';
       html += '<div class="validation-error" id="orderError"></div>';
@@ -933,9 +948,12 @@
       // Mode selector
       html += '<div class="form-group"><label>Mode This Round</label></div>';
       html += '<div class="mode-toggle" id="retailModeToggle">';
-      html += '<button class="mode-btn" data-mode="emotion" id="modeEmotion">EMOTION MODE</button>';
-      html += '<button class="mode-btn" data-mode="followtrend" id="modeFollow">FOLLOW TREND<br><span style="font-size:0.75rem;font-weight:400;color:var(--text-dim);">(-10% profit)</span></button>';
+      html += '<button class="mode-btn" data-mode="emotion" id="modeEmotion">EMOTION MODE<br><span style="font-size:0.75rem;font-weight:400;color:var(--text-dim);">Market order, up to 6 shares</span></button>';
+      html += '<button class="mode-btn" data-mode="followtrend" id="modeFollow">FOLLOW TREND<br><span style="font-size:0.75rem;font-weight:400;color:var(--text-dim);">See others first, -10% profit</span></button>';
       html += '</div>';
+
+      // Market/limit toggle
+      html += buildOrderTypeToggle();
 
       html += '<div class="btn-group mb-2">';
       html += '<button class="dir-btn" data-dir="buy" id="dirBuy">BUY</button>';
@@ -943,7 +961,7 @@
       html += '<button class="dir-btn" data-dir="hold" id="dirHold">HOLD</button>';
       html += '</div>';
       html += '<div id="priceQtyFields">';
-      html += '<div class="form-group"><label>Price</label><input type="number" id="orderPrice" min="1" step="0.1" placeholder="Enter price"></div>';
+      html += '<div id="priceField" class="form-group"><label>Price</label><input type="number" id="orderPrice" min="1" step="0.1" placeholder="Enter price"></div>';
       html += '<div class="form-group"><label id="qtyLabel">Quantity (max 5, or 6 with emotion)</label><input type="number" id="orderQty" min="1" max="6" step="1" placeholder="Number of shares"></div>';
       html += '</div>';
 
@@ -999,6 +1017,30 @@
       var selectedHedgeType = 'normal';
       var selectedRetailMode = null;
       var emotionExtra = false;
+      var selectedOrderType = 'limit'; // 'limit' or 'market'
+
+      // Order type toggle (market/limit) — not for market maker
+      function updateOrderTypeUI() {
+        var priceField = document.getElementById('priceField');
+        var marketNote = document.getElementById('marketOrderNote');
+        if (selectedOrderType === 'market') {
+          if (priceField) priceField.style.display = 'none';
+          if (marketNote) marketNote.classList.remove('hidden');
+        } else {
+          if (priceField) priceField.style.display = 'block';
+          if (marketNote) marketNote.classList.add('hidden');
+        }
+      }
+
+      var otBtns = document.querySelectorAll('#orderTypeToggle .mode-btn');
+      otBtns.forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          selectedOrderType = this.getAttribute('data-otype');
+          otBtns.forEach(function(b) { b.classList.remove('active'); });
+          this.classList.add('active');
+          updateOrderTypeUI();
+        });
+      });
 
       // Direction buttons
       var dirBtns = document.querySelectorAll('.dir-btn[data-dir]');
@@ -1068,6 +1110,14 @@
             selectedRetailMode = this.getAttribute('data-mode');
             modeBtns.forEach(function(b) { b.classList.remove('active'); });
             this.classList.add('active');
+            // Emotion mode auto-switches to market order
+            if (selectedRetailMode === 'emotion') {
+              selectedOrderType = 'market';
+              otBtns.forEach(function(b) { b.classList.remove('active'); });
+              var mktBtn = document.getElementById('otypeMarket');
+              if (mktBtn) mktBtn.classList.add('active');
+              updateOrderTypeUI();
+            }
             checkEmotionExtra();
           });
         });
@@ -1132,17 +1182,18 @@
           return;
         }
 
-        var price = parseFloat(document.getElementById('orderPrice').value) || 0;
+        var isMarketOrder = selectedOrderType === 'market';
+        var price = isMarketOrder ? 0 : (parseFloat(document.getElementById('orderPrice').value) || 0);
         var qty = parseInt(document.getElementById('orderQty').value, 10) || 0;
 
         if (selectedDir !== 'hold') {
-          if (price <= 0) { errEl.textContent = 'Enter a valid price greater than 0.'; return; }
+          if (!isMarketOrder && price <= 0) { errEl.textContent = 'Enter a valid price greater than 0.'; return; }
           if (qty <= 0) { errEl.textContent = 'Enter a valid quantity greater than 0.'; return; }
           var maxShares = (role.id === 'retail' && selectedRetailMode === 'emotion' && emotionExtra) ? 6 : 5;
           if (qty > maxShares) { errEl.textContent = 'Maximum ' + maxShares + ' shares per round.' + (role.id === 'retail' && selectedRetailMode === 'emotion' ? ' (Emotion mode: enable extra share for 6)' : ''); return; }
 
-          // Buy validation
-          if (selectedDir === 'buy') {
+          // Buy validation (skip cash check for market orders — price unknown)
+          if (selectedDir === 'buy' && !isMarketOrder) {
             var maxBuy = Math.floor(pf.cash / price);
             if (qty > maxBuy) {
               errEl.textContent = 'Insufficient cash. Maximum ' + maxBuy + ' shares at price ' + price + '.';
@@ -1171,6 +1222,7 @@
           groupId: groupId,
           role: role.id,
           direction: selectedDir,
+          orderType: selectedDir === 'hold' ? 'limit' : selectedOrderType,
           price: selectedDir === 'hold' ? 0 : price,
           quantity: selectedDir === 'hold' ? 0 : qty,
           retailMode: role.id === 'retail' ? selectedRetailMode : null,

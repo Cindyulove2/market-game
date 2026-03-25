@@ -754,8 +754,9 @@ function renderOrders(state) {
         html += '<td class="text-dim">Spread: ' + (order.askPrice - order.bidPrice) + '</td>';
       } else {
         const dirColor = order.direction === 'buy' ? 'text-green' : order.direction === 'sell' ? 'text-red' : 'text-orange';
-        html += '<td class="' + dirColor + '">' + (order.direction || 'hold').toUpperCase() + '</td>';
-        html += '<td>' + (order.price || '-') + '</td>';
+        const dirLabel = (order.direction || 'hold').toUpperCase() + (order.orderType === 'market' ? ' (MKT)' : '');
+        html += '<td class="' + dirColor + '">' + dirLabel + '</td>';
+        html += '<td>' + (order.orderType === 'market' ? '<span class="text-orange">MKT</span>' : (order.price || '-')) + '</td>';
         html += '<td>' + (order.quantity || '-') + '</td>';
         const ir = computeImpliedR(order, D);
         if (ir !== null && typeof ir === 'number') {
