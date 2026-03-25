@@ -337,7 +337,7 @@
         if (phase === 'ordering' && lastRenderedPhase === 'ordering' && lastRenderedRound === round) {
           var timerEl = document.getElementById('timerDisplay');
           if (timerEl) {
-            var s = state.timerSeconds || 0;
+            var s = getTimerSecs(state);
             var min = Math.floor(s / 60);
             var sec = s % 60;
             timerEl.textContent = min + ':' + (sec < 10 ? '0' : '') + sec;
@@ -793,8 +793,14 @@
 
     // ─── Build helpers ───
 
+    function getTimerSecs(state) {
+      if (state.timerPaused) return state.timerPausedRemaining || 0;
+      if (state.timerEndTime) return Math.max(0, Math.ceil((state.timerEndTime - Date.now()) / 1000));
+      return 0;
+    }
+
     function buildTimer(state) {
-      var s = state.timerSeconds || 0;
+      var s = getTimerSecs(state);
       var min = Math.floor(s / 60);
       var sec = s % 60;
       var warn = s <= 10 ? ' warning' : '';
@@ -802,16 +808,17 @@
     }
 
     function startCountdown(state) {
-      if (!state.timerRunning) return;
+      if (!state.timerEndTime) return;
       countdownInterval = setInterval(function() {
         var st = store.getState();
-        if (!st.timerRunning || st.phase !== 'ordering') {
+        if (st.phase !== 'ordering' || !st.timerEndTime) {
           clearInterval(countdownInterval);
           return;
         }
+        if (st.timerPaused) return;
         var el = document.getElementById('timerDisplay');
         if (!el) { clearInterval(countdownInterval); return; }
-        var s = st.timerSeconds || 0;
+        var s = getTimerSecs(st);
         var min = Math.floor(s / 60);
         var sec = s % 60;
         el.textContent = min + ':' + (sec < 10 ? '0' : '') + sec;

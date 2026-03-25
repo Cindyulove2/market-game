@@ -523,6 +523,11 @@
       return (order.direction || 'hold');
     }
 
+    function getTimerSecs(state) {
+      if (state.timerPaused) return state.timerPausedRemaining || 0;
+      if (state.timerEndTime) return Math.max(0, Math.ceil((state.timerEndTime - Date.now()) / 1000));
+      return 0;
+    }
     function formatTimer(seconds) {
       const m = Math.floor(seconds / 60);
       const s = seconds % 60;
@@ -613,7 +618,7 @@
       const round = getRoundData(state.currentRound);
       const d = round.D;
       const dCol = 'D' + d;
-      const timerWarning = state.timerSeconds <= 10;
+      const timerWarning = getTimerSecs(state) <= 10;
 
       let refRows = round.referenceTable.map(row => {
         const pStarVal = row[dCol] || '—';
@@ -645,7 +650,7 @@
           <div class="ordering-top">
             <div class="round-info">ROUND ${state.currentRound} / ${state.totalRounds || 5}</div>
             <div class="d-info">D = ${d}</div>
-            <div class="ordering-timer${timerWarning ? ' warning' : ''}">${formatTimer(state.timerSeconds)}</div>
+            <div class="ordering-timer${timerWarning ? ' warning' : ''}">${formatTimer(getTimerSecs(state))}</div>
           </div>
           <div class="ordering-body">
             <div class="card ordering-ref-table">
@@ -685,8 +690,8 @@
       // Update timer
       const timerEl = app.querySelector('.ordering-timer');
       if (timerEl) {
-        timerEl.textContent = formatTimer(state.timerSeconds);
-        if (state.timerSeconds <= 10) { timerEl.classList.add('warning'); } else { timerEl.classList.remove('warning'); }
+        timerEl.textContent = formatTimer(getTimerSecs(state));
+        if (getTimerSecs(state) <= 10) { timerEl.classList.add('warning'); } else { timerEl.classList.remove('warning'); }
       }
       // Update order status chips
       for (let g = 1; g <= 5; g++) {
@@ -1336,6 +1341,14 @@
     if (initialState.phase === 'reveal' && initialState.revealSubPhase === 'followTrend') {
       startFollowTrendCountdown();
     }
+
+    // Local timer: update display every 500ms during ordering (no Firebase needed)
+    setInterval(() => {
+      const s = store.getState();
+      if (s.phase === 'ordering' && s.timerEndTime && !s.timerPaused) {
+        patchOrderingScreen(s);
+      }
+    }, 500);
   </script>
 </body>
 </html>

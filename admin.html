@@ -331,44 +331,51 @@ function updateTimerDuration() {
 }
 
 // ---- Timer Logic ----
+// Timer is driven by timerEndTime in state — all clients compute remaining time locally
+// No per-second Firebase writes needed
 
-function startTimer() {
-  const state = store.getState();
-  if (state.phase !== 'ordering') return;
+function startLocalTimer() {
   if (timerInterval) clearInterval(timerInterval);
-  store.setState({ timerRunning: true });
   timerInterval = setInterval(() => {
     const s = store.getState();
-    if (!s.timerRunning || s.phase !== 'ordering') {
+    if (s.phase !== 'ordering' || !s.timerEndTime) {
       clearInterval(timerInterval);
       timerInterval = null;
       return;
     }
-    const next = s.timerSeconds - 1;
-    if (next <= 0) {
-      store.setState({ timerSeconds: 0, timerRunning: false });
-      clearInterval(timerInterval);
-      timerInterval = null;
-    } else {
-      store.setState({ timerSeconds: next });
-    }
-  }, 1000);
+    if (s.timerPaused) return;
+    const remaining = Math.max(0, Math.ceil((s.timerEndTime - Date.now()) / 1000));
+    // Update local display
+    renderTimer({ timerSeconds: remaining, phase: 'ordering' });
+    renderButtons({ ...s, timerSeconds: remaining });
+  }, 500);
+}
+
+function startTimer() {
+  const state = store.getState();
+  if (state.phase !== 'ordering') return;
+  if (!state.timerEndTime || state.timerPaused) {
+    // Resume from pause or fresh start
+    const remaining = state.timerPausedRemaining || timerDuration;
+    const endTime = Date.now() + remaining * 1000;
+    store.setState({ timerEndTime: endTime, timerPaused: false, timerPausedRemaining: 0 }, true);
+  }
+  startLocalTimer();
 }
 
 function pauseTimer() {
-  if (timerInterval) {
-    clearInterval(timerInterval);
-    timerInterval = null;
-  }
-  store.setState({ timerRunning: false });
+  const state = store.getState();
+  if (!state.timerEndTime) return;
+  const remaining = Math.max(1, Math.ceil((state.timerEndTime - Date.now()) / 1000));
+  store.setState({ timerPaused: true, timerPausedRemaining: remaining }, true);
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
 }
 
 function resetTimer() {
-  if (timerInterval) {
-    clearInterval(timerInterval);
-    timerInterval = null;
-  }
-  store.setState({ timerSeconds: timerDuration, timerRunning: false });
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+  const endTime = Date.now() + timerDuration * 1000;
+  store.setState({ timerEndTime: endTime, timerPaused: false, timerPausedRemaining: 0 }, true);
+  startLocalTimer();
 }
 
 // ---- Phase Actions ----
@@ -381,8 +388,9 @@ function startRound() {
     phase: 'signal',
     orders: { group1: null, group2: null, group3: null, group4: null, group5: null },
     matchingResults: { trades: [], clearingPrice: null, referencePrice: null, noTrade: false },
-    timerSeconds: timerDuration,
-    timerRunning: false,
+    timerEndTime: null,
+    timerPaused: false,
+    timerPausedRemaining: 0,
     revealSubPhase: null,
     followTrendActive: false,
     followTrendEnd: null,
@@ -393,13 +401,14 @@ function startRound() {
 function openOrdering() {
   const state = store.getState();
   if (state.phase !== 'signal') return;
+  const endTime = Date.now() + timerDuration * 1000;
   store.setState({
     phase: 'ordering',
-    timerSeconds: timerDuration,
-    timerRunning: false,
+    timerEndTime: endTime,
+    timerPaused: false,
+    timerPausedRemaining: 0,
   }, true);
-  // Auto-start timer
-  setTimeout(() => startTimer(), 100);
+  startLocalTimer();
 }
 
 function handleRunMatching() {
@@ -412,7 +421,7 @@ function handleRunMatching() {
     clearInterval(timerInterval);
     timerInterval = null;
   }
-  store.setState({ timerRunning: false });
+  store.setState({ timerPaused: true });
 
   // Fill in HOLD for any group that hasn't submitted
   const orders = { ...state.orders };
@@ -601,8 +610,9 @@ function nextRound() {
     phase: 'waiting',
     orders: { group1: null, group2: null, group3: null, group4: null, group5: null },
     matchingResults: { trades: [], clearingPrice: null, referencePrice: null, noTrade: false },
-    timerSeconds: timerDuration,
-    timerRunning: false,
+    timerEndTime: null,
+    timerPaused: false,
+    timerPausedRemaining: 0,
     revealSubPhase: null,
     followTrendActive: false,
     followTrendEnd: null,
@@ -641,10 +651,16 @@ function confirmReset() {
 function renderAll(state) {
   renderPhaseIndicator(state);
   renderRoundDots(state);
-  renderTimer(state);
-  renderButtons(state);
+  // Compute timer seconds from endTime for display
+  var timerState = { ...state, timerSeconds: getTimerSeconds(state) };
+  renderTimer(timerState);
+  renderButtons(timerState);
   renderOrders(state);
   renderPortfolios(state);
+  // Ensure local timer is running during ordering
+  if (state.phase === 'ordering' && state.timerEndTime && !state.timerPaused && !timerInterval) {
+    startLocalTimer();
+  }
 }
 
 function renderPhaseIndicator(state) {
@@ -679,9 +695,15 @@ function renderRoundDots(state) {
   container.innerHTML = html;
 }
 
+function getTimerSeconds(state) {
+  if (state.timerPaused) return state.timerPausedRemaining || 0;
+  if (!state.timerEndTime) return 0;
+  return Math.max(0, Math.ceil((state.timerEndTime - Date.now()) / 1000));
+}
+
 function renderTimer(state) {
   const el = document.getElementById('timerDisplay');
-  const secs = state.timerSeconds;
+  const secs = state.timerSeconds != null ? state.timerSeconds : getTimerSeconds(state);
   const mins = Math.floor(secs / 60);
   const s = secs % 60;
   el.textContent = mins + ':' + (s < 10 ? '0' : '') + s;
@@ -717,7 +739,8 @@ function renderButtons(state) {
     btnOrder.disabled = false;
   } else if (phase === 'ordering') {
     const submittedCount = countSubmitted(state.orders);
-    const timerDone = state.timerSeconds <= 0;
+    const secs = state.timerSeconds != null ? state.timerSeconds : getTimerSeconds(state);
+    const timerDone = secs <= 0;
     if (submittedCount >= 5 || timerDone) {
       btnMatch.disabled = false;
     }

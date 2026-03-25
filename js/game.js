@@ -91,8 +91,9 @@ function createInitialState() {
     phase: 'waiting',
     totalRounds: 5, // admin can set to 3, 4, or 5
     currentRound: 1,
-    timerSeconds: 60,
-    timerRunning: false,
+    timerEndTime: null,
+    timerPaused: false,
+    timerPausedRemaining: 0,
     orders: { group1: null, group2: null, group3: null, group4: null, group5: null },
     matchingResults: { trades: [], clearingPrice: null, referencePrice: null, noTrade: false },
     currentPrice: 100,      // = marketPrice, updated every round
