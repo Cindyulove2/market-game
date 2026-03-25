@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lottery Admin</title>
+  <link rel="stylesheet" href="css/lottery.css">
+  <style>
+    .nav-links {
+      display: flex; gap: 12px; justify-content: center; margin-bottom: 16px; flex-wrap: wrap;
+    }
+    .nav-links a {
+      color: var(--accent); text-decoration: none; font-weight: 600; font-size: 0.9rem;
+      padding: 6px 14px; border: 1px solid var(--border); border-radius: 8px;
+      transition: all 0.15s;
+    }
+    .nav-links a:hover { background: var(--surface2); }
+    .page-title {
+      text-align: center; font-size: 1.8rem; font-weight: 900; margin-bottom: 16px;
+      color: var(--gold);
+    }
+    .remaining-tag {
+      font-size: 0.8rem; color: var(--text-dim); white-space: nowrap; min-width: 80px;
+      text-align: right;
+    }
+    .remaining-tag.depleted { color: var(--red); }
+    .pool-pools-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    @media (max-width: 768px) { .pool-pools-grid { grid-template-columns: 1fr; } }
+    .empty-log { text-align: center; color: var(--text-dim); padding: 24px; }
+    .draw-item .time { font-size: 0.8rem; color: var(--text-dim); white-space: nowrap; }
+  </style>
+</head>
+<body>
+
+  <!-- Password Gate -->
+  <div class="pw-overlay" id="pwOverlay">
+    <div class="pw-box">
+      <h2>Admin Login</h2>
+      <input type="password" id="pwInput" placeholder="Enter admin password" autofocus>
+      <div class="error" id="pwError">Incorrect password. Try again.</div>
+      <button class="btn btn-primary" id="pwBtn" style="width:100%">Enter</button>
+    </div>
+  </div>
+
+  <!-- Main Content (hidden until authenticated) -->
+  <div class="admin-container" id="mainContent" style="display:none;">
+
+    <h1 class="page-title">Lottery Admin Panel</h1>
+
+    <div class="nav-links">
+      <a href="index.html">Back to Landing</a>
+      <a href="student.html">Student Page</a>
+      <a href="display.html">Display Page</a>
+    </div>
+
+    <!-- Control Bar -->
+    <div class="control-bar" id="controlBar">
+      <span class="status-badge" id="statusBadge">CLOSED</span>
+      <button class="btn btn-green" id="toggleBtn">Open Lottery</button>
+      <button class="btn btn-red" id="resetBtn">Reset All</button>
+    </div>
+
+    <!-- Prize Pool Editors -->
+    <div class="pool-pools-grid">
+      <div class="card pool-section" id="poolA">
+        <div class="pool-header">
+          <input type="text" class="pool-name-input" id="poolNameA" value="Group A" placeholder="Pool A Name">
+          <button class="btn btn-primary" style="padding:6px 14px; font-size:0.85rem;" onclick="addPrize('A')">+ Add Prize</button>
+        </div>
+        <div id="prizesA"></div>
+      </div>
+      <div class="card pool-section" id="poolB">
+        <div class="pool-header">
+          <input type="text" class="pool-name-input" id="poolNameB" value="Group B" placeholder="Pool B Name">
+          <button class="btn btn-purple" style="padding:6px 14px; font-size:0.85rem;" onclick="addPrize('B')">+ Add Prize</button>
+        </div>
+        <div id="prizesB"></div>
+      </div>
+    </div>
+
+    <!-- Draw History Log -->
+    <div class="card">
+      <div class="card-title">Draw History</div>
+      <div class="draw-log" id="drawLog">
+        <div class="empty-log">No draws yet.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script>
+    firebase.initializeApp({
+      apiKey: "AIzaSyDXmYEzKySF2Zs2L6cuNa_YNE03YYlkLV0",
+      authDomain: "market-simulation-8cd65.firebaseapp.com",
+      databaseURL: "https://market-simulation-8cd65-default-rtdb.firebaseio.com",
+      projectId: "market-simulation-8cd65",
+      storageBucket: "market-simulation-8cd65.firebasestorage.app",
+      messagingSenderId: "284208038757",
+      appId: "1:284208038757:web:abea222f4b87921dde178c"
+    });
+  </script>
+  <script src="js/lottery-store.js"></script>
+
+  <script>
+    // =====================
+    // Password Gate
+    // =====================
+    const ADMIN_PW = 'market2026';
+    const PW_KEY = 'lottery_admin_auth';
+
+    const pwOverlay = document.getElementById('pwOverlay');
+    const mainContent = document.getElementById('mainContent');
+    const pwInput = document.getElementById('pwInput');
+    const pwError = document.getElementById('pwError');
+    const pwBtn = document.getElementById('pwBtn');
+
+    function checkAuth() {
+      if (sessionStorage.getItem(PW_KEY) === 'true') {
+        pwOverlay.style.display = 'none';
+        mainContent.style.display = 'block';
+        return true;
+      }
+      return false;
+    }
+
+    function attemptLogin() {
+      if (pwInput.value === ADMIN_PW) {
+        sessionStorage.setItem(PW_KEY, 'true');
+        pwOverlay.style.display = 'none';
+        mainContent.style.display = 'block';
+      } else {
+        pwError.style.display = 'block';
+        pwInput.value = '';
+        pwInput.focus();
+      }
+    }
+
+    pwBtn.addEventListener('click', attemptLogin);
+    pwInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') attemptLogin(); });
+    checkAuth();
+
+    // =====================
+    // UI References
+    // =====================
+    const poolNameA = document.getElementById('poolNameA');
+    const poolNameB = document.getElementById('poolNameB');
+    const prizesA = document.getElementById('prizesA');
+    const prizesB = document.getElementById('prizesB');
+    const statusBadge = document.getElementById('statusBadge');
+    const toggleBtn = document.getElementById('toggleBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const drawLog = document.getElementById('drawLog');
+
+    let isSaving = false;
+
+    // =====================
+    // Render Functions
+    // =====================
+    function getRemaining(poolId, prizeName, qty, draws) {
+      const drawn = (draws || []).filter(d => d.pool === poolId && d.prize === prizeName).length;
+      return qty - drawn;
+    }
+
+    function renderPrizes(poolId, prizes, draws) {
+      const container = poolId === 'A' ? prizesA : prizesB;
+      container.innerHTML = '';
+
+      if (!prizes || prizes.length === 0) {
+        container.innerHTML = '<div style="color:var(--text-dim); font-size:0.9rem; padding:8px;">No prizes added yet.</div>';
+        return;
+      }
+
+      prizes.forEach((prize, idx) => {
+        const remaining = getRemaining(poolId, prize.name, prize.qty || 0, draws);
+        const depleted = remaining <= 0;
+
+        const row = document.createElement('div');
+        row.className = 'prize-row';
+        row.innerHTML =
+          '<input type="text" class="prize-name" placeholder="Prize name" value="' + escapeAttr(prize.name || '') + '" data-pool="' + poolId + '" data-idx="' + idx + '" data-field="name">' +
+          '<input type="number" class="prize-qty" min="0" placeholder="Qty" value="' + (prize.qty || 0) + '" data-pool="' + poolId + '" data-idx="' + idx + '" data-field="qty">' +
+          '<span class="remaining-tag' + (depleted ? ' depleted' : '') + '">' + remaining + ' left</span>' +
+          '<button class="remove-btn" data-pool="' + poolId + '" data-idx="' + idx + '" title="Remove prize">&times;</button>';
+
+        container.appendChild(row);
+      });
+
+      // Attach event listeners
+      container.querySelectorAll('input').forEach(input => {
+        input.addEventListener('change', handlePrizeEdit);
+        input.addEventListener('blur', handlePrizeEdit);
+      });
+      container.querySelectorAll('.remove-btn').forEach(btn => {
+        btn.addEventListener('click', handleRemovePrize);
+      });
+    }
+
+    function renderStatus(isOpen) {
+      if (isOpen) {
+        statusBadge.textContent = 'OPEN';
+        statusBadge.className = 'status-badge status-open';
+        toggleBtn.textContent = 'Close Lottery';
+        toggleBtn.className = 'btn btn-red';
+      } else {
+        statusBadge.textContent = 'CLOSED';
+        statusBadge.className = 'status-badge status-closed';
+        toggleBtn.textContent = 'Open Lottery';
+        toggleBtn.className = 'btn btn-green';
+      }
+    }
+
+    function renderDrawLog(draws) {
+      if (!draws || draws.length === 0) {
+        drawLog.innerHTML = '<div class="empty-log">No draws yet.</div>';
+        return;
+      }
+
+      const sorted = [...draws].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+      drawLog.innerHTML = '';
+
+      sorted.forEach(draw => {
+        const item = document.createElement('div');
+        item.className = 'draw-item';
+
+        const time = draw.timestamp ? new Date(draw.timestamp).toLocaleString('en-US', {
+          month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit'
+        }) : 'N/A';
+
+        item.innerHTML =
+          '<span class="name">' + escapeHtml(draw.studentName || 'Unknown') + '</span>' +
+          '<span class="prize">' + escapeHtml(draw.prize || '') + '</span>' +
+          '<span class="pool-tag pool-tag-' + (draw.pool || 'A') + '">Pool ' + (draw.pool || '?') + '</span>' +
+          '<span class="time">' + time + '</span>';
+
+        drawLog.appendChild(item);
+      });
+    }
+
+    function renderAll(state) {
+      if (isSaving) return;
+
+      const pools = state.pools || {};
+      const draws = state.draws || [];
+
+      // Pool names
+      poolNameA.value = (pools.A && pools.A.name) || 'Group A';
+      poolNameB.value = (pools.B && pools.B.name) || 'Group B';
+
+      // Prizes
+      renderPrizes('A', (pools.A && pools.A.prizes) || [], draws);
+      renderPrizes('B', (pools.B && pools.B.prizes) || [], draws);
+
+      // Status
+      renderStatus(!!state.isOpen);
+
+      // Draw log
+      renderDrawLog(draws);
+    }
+
+    // =====================
+    // Handlers
+    // =====================
+    function handlePrizeEdit(e) {
+      const poolId = e.target.dataset.pool;
+      const idx = parseInt(e.target.dataset.idx, 10);
+      const field = e.target.dataset.field;
+
+      const state = lotteryStore.getState();
+      const pools = JSON.parse(JSON.stringify(state.pools || {}));
+
+      if (!pools[poolId] || !pools[poolId].prizes[idx]) return;
+
+      if (field === 'name') {
+        pools[poolId].prizes[idx].name = e.target.value;
+      } else if (field === 'qty') {
+        pools[poolId].prizes[idx].qty = Math.max(0, parseInt(e.target.value, 10) || 0);
+      }
+
+      isSaving = true;
+      lotteryStore.setState({ pools: pools });
+      setTimeout(() => { isSaving = false; }, 300);
+    }
+
+    function handleRemovePrize(e) {
+      const poolId = e.target.dataset.pool || e.currentTarget.dataset.pool;
+      const idx = parseInt(e.target.dataset.idx || e.currentTarget.dataset.idx, 10);
+
+      const state = lotteryStore.getState();
+      const pools = JSON.parse(JSON.stringify(state.pools || {}));
+
+      if (!pools[poolId] || !pools[poolId].prizes) return;
+
+      pools[poolId].prizes.splice(idx, 1);
+      lotteryStore.setState({ pools: pools });
+    }
+
+    function addPrize(poolId) {
+      const state = lotteryStore.getState();
+      const pools = JSON.parse(JSON.stringify(state.pools || {}));
+
+      if (!pools[poolId]) {
+        pools[poolId] = { name: poolId === 'A' ? 'Group A' : 'Group B', prizes: [] };
+      }
+
+      pools[poolId].prizes.push({ name: '', qty: 1 });
+      lotteryStore.setState({ pools: pools });
+    }
+
+    // Pool name editing
+    poolNameA.addEventListener('change', () => {
+      const state = lotteryStore.getState();
+      const pools = JSON.parse(JSON.stringify(state.pools || {}));
+      if (!pools.A) pools.A = { name: 'Group A', prizes: [] };
+      pools.A.name = poolNameA.value || 'Group A';
+      isSaving = true;
+      lotteryStore.setState({ pools: pools });
+      setTimeout(() => { isSaving = false; }, 300);
+    });
+
+    poolNameB.addEventListener('change', () => {
+      const state = lotteryStore.getState();
+      const pools = JSON.parse(JSON.stringify(state.pools || {}));
+      if (!pools.B) pools.B = { name: 'Group B', prizes: [] };
+      pools.B.name = poolNameB.value || 'Group B';
+      isSaving = true;
+      lotteryStore.setState({ pools: pools });
+      setTimeout(() => { isSaving = false; }, 300);
+    });
+
+    // Toggle open/close
+    toggleBtn.addEventListener('click', () => {
+      const state = lotteryStore.getState();
+      lotteryStore.setState({ isOpen: !state.isOpen });
+    });
+
+    // Reset all
+    resetBtn.addEventListener('click', () => {
+      if (confirm('Are you sure you want to reset everything? This will clear all prizes, draws, and settings.')) {
+        lotteryStore.reset();
+      }
+    });
+
+    // =====================
+    // Utilities
+    // =====================
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    function escapeAttr(str) {
+      return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    // =====================
+    // Subscribe and initial render
+    // =====================
+    lotteryStore.subscribe(renderAll);
+
+    // Initial render
+    setTimeout(() => { renderAll(lotteryStore.getState()); }, 100);
+  </script>
+</body>
+</html>

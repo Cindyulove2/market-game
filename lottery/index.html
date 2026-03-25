@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lucky Draw</title>
+  <link rel="stylesheet" href="css/lottery.css">
+  <style>
+    .step { display: none; width: 100%; }
+    .step.active { display: flex; flex-direction: column; align-items: center; }
+    .subtitle { color: var(--text-dim); font-size: 0.95rem; margin-bottom: 24px; }
+    .draw-status-msg {
+      color: var(--text-dim); font-size: 1rem; margin-top: 16px;
+      text-align: center; min-height: 24px;
+    }
+    .draw-status-msg.warn { color: var(--orange); }
+    .draw-button.spinning {
+      animation: spin 0.6s ease-in-out;
+      pointer-events: none;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg) scale(1); }
+      25% { transform: rotate(90deg) scale(0.9); }
+      50% { transform: rotate(180deg) scale(1.05); }
+      75% { transform: rotate(270deg) scale(0.9); }
+      100% { transform: rotate(360deg) scale(1); }
+    }
+  </style>
+</head>
+<body>
+  <div class="student-container" id="app">
+
+    <!-- Title -->
+    <h1 class="student-title">LUCKY DRAW</h1>
+    <p class="subtitle">Pick your pool, enter your name, and draw a prize!</p>
+
+    <!-- Step 1: Select Pool -->
+    <div class="step active" id="step-pool">
+      <div class="pool-select">
+        <button class="pool-btn" id="pool-btn-A" onclick="selectPool('A')">Group A</button>
+        <button class="pool-btn" id="pool-btn-B" onclick="selectPool('B')">Group B</button>
+      </div>
+    </div>
+
+    <!-- Step 2: Enter Name -->
+    <div class="step" id="step-name">
+      <input type="text" class="name-input" id="name-input" placeholder="Enter your name" maxlength="30"
+             oninput="onNameInput()">
+    </div>
+
+    <!-- Step 3: Draw -->
+    <div class="step" id="step-draw">
+      <button class="draw-button" id="draw-btn" disabled onclick="doDraw()">DRAW</button>
+      <div class="draw-status-msg" id="draw-status"></div>
+    </div>
+
+    <!-- Result -->
+    <div class="step" id="step-result">
+      <div class="card result-card" id="result-card">
+        <div class="prize-icon" id="result-icon"></div>
+        <div class="prize-text" id="result-prize"></div>
+        <div class="congrats">Congratulations!</div>
+        <div class="draw-again">
+          <button class="btn btn-primary btn-lg" id="draw-again-btn" onclick="drawAgain()">Draw Again</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script>
+    firebase.initializeApp({
+      apiKey: "AIzaSyDXmYEzKySF2Zs2L6cuNa_YNE03YYlkLV0",
+      authDomain: "market-simulation-8cd65.firebaseapp.com",
+      databaseURL: "https://market-simulation-8cd65-default-rtdb.firebaseio.com",
+      projectId: "market-simulation-8cd65",
+      storageBucket: "market-simulation-8cd65.firebasestorage.app",
+      messagingSenderId: "284208038757",
+      appId: "1:284208038757:web:abea222f4b87921dde178c"
+    });
+  </script>
+  <script src="js/lottery-store.js"></script>
+
+  <script>
+    // ------ App State ------
+    let selectedPool = null;
+    let studentName = '';
+    let currentState = null;
+
+    // ------ DOM refs ------
+    const poolBtnA = document.getElementById('pool-btn-A');
+    const poolBtnB = document.getElementById('pool-btn-B');
+    const nameInput = document.getElementById('name-input');
+    const drawBtn = document.getElementById('draw-btn');
+    const drawStatus = document.getElementById('draw-status');
+    const drawAgainBtn = document.getElementById('draw-again-btn');
+
+    const stepPool = document.getElementById('step-pool');
+    const stepName = document.getElementById('step-name');
+    const stepDraw = document.getElementById('step-draw');
+    const stepResult = document.getElementById('step-result');
+
+    // ------ Pool selection ------
+    function selectPool(pool) {
+      selectedPool = pool;
+      poolBtnA.className = 'pool-btn' + (pool === 'A' ? ' selected-A' : '');
+      poolBtnB.className = 'pool-btn' + (pool === 'B' ? ' selected-B' : '');
+      stepName.classList.add('active');
+      stepDraw.classList.add('active');
+      nameInput.focus();
+      updateDrawButton();
+    }
+
+    // ------ Name input ------
+    function onNameInput() {
+      studentName = nameInput.value.trim();
+      updateDrawButton();
+    }
+
+    // ------ Remaining prizes calculation ------
+    function getAvailablePrizes(state, poolId) {
+      const pool = state.pools && state.pools[poolId];
+      if (!pool || !pool.prizes || pool.prizes.length === 0) return [];
+
+      const draws = Array.isArray(state.draws) ? state.draws : [];
+      const available = [];
+
+      for (const prize of pool.prizes) {
+        const used = draws.filter(d => d.pool === poolId && d.prize === prize.name).length;
+        const remaining = (prize.qty || 0) - used;
+        if (remaining > 0) {
+          available.push({ name: prize.name, icon: prize.icon || '', remaining: remaining });
+        }
+      }
+      return available;
+    }
+
+    // ------ Weighted random selection ------
+    function weightedRandomPick(available) {
+      const weighted = [];
+      for (const p of available) {
+        for (let i = 0; i < p.remaining; i++) {
+          weighted.push(p);
+        }
+      }
+      if (weighted.length === 0) return null;
+      return weighted[Math.floor(Math.random() * weighted.length)];
+    }
+
+    // ------ Update draw button state ------
+    function updateDrawButton() {
+      const state = currentState || lotteryStore.getState();
+      let statusMsg = '';
+      let disabled = false;
+
+      if (!state.isOpen) {
+        statusMsg = 'Lottery is not open yet';
+        disabled = true;
+      } else if (!selectedPool) {
+        statusMsg = 'Select a pool above';
+        disabled = true;
+      } else if (!studentName) {
+        statusMsg = 'Enter your name to continue';
+        disabled = true;
+      } else {
+        const available = getAvailablePrizes(state, selectedPool);
+        if (available.length === 0) {
+          statusMsg = 'All prizes have been drawn';
+          disabled = true;
+        }
+      }
+
+      drawBtn.disabled = disabled;
+      drawStatus.textContent = statusMsg;
+      drawStatus.className = 'draw-status-msg' + (statusMsg ? ' warn' : '');
+    }
+
+    // ------ Do the draw ------
+    function doDraw() {
+      const state = lotteryStore.getState();
+
+      if (!state.isOpen || !selectedPool || !studentName) return;
+
+      const available = getAvailablePrizes(state, selectedPool);
+      if (available.length === 0) return;
+
+      // Animate the button
+      drawBtn.classList.add('spinning');
+      drawBtn.disabled = true;
+
+      setTimeout(function() {
+        drawBtn.classList.remove('spinning');
+
+        const picked = weightedRandomPick(available);
+        if (!picked) return;
+
+        // Build new draw record
+        const drawRecord = {
+          id: Date.now(),
+          pool: selectedPool,
+          studentName: studentName,
+          prize: picked.name,
+          timestamp: Date.now()
+        };
+
+        // Update state
+        const draws = Array.isArray(state.draws) ? [...state.draws] : [];
+        draws.push(drawRecord);
+
+        lotteryStore.setState({
+          draws: draws,
+          showResult: {
+            studentName: studentName,
+            prize: picked.name,
+            pool: selectedPool
+          }
+        });
+
+        // Show result
+        showResult(picked);
+      }, 700);
+    }
+
+    // ------ Show result ------
+    function showResult(prize) {
+      document.getElementById('result-icon').textContent = prize.icon || '🎁';
+      document.getElementById('result-prize').textContent = prize.name;
+
+      stepPool.classList.remove('active');
+      stepName.classList.remove('active');
+      stepDraw.classList.remove('active');
+      stepResult.classList.add('active');
+
+      // Check if they can draw again
+      const state = lotteryStore.getState();
+      const available = getAvailablePrizes(state, selectedPool);
+      drawAgainBtn.style.display = (state.isOpen && available.length > 0) ? 'inline-flex' : 'none';
+    }
+
+    // ------ Draw again ------
+    function drawAgain() {
+      stepResult.classList.remove('active');
+      stepPool.classList.add('active');
+      stepName.classList.add('active');
+      stepDraw.classList.add('active');
+      updateDrawButton();
+    }
+
+    // ------ Subscribe to state changes ------
+    function onStateChange(state) {
+      currentState = state;
+
+      // Update pool button labels
+      if (state.pools) {
+        poolBtnA.textContent = state.pools.A ? state.pools.A.name : 'Group A';
+        poolBtnB.textContent = state.pools.B ? state.pools.B.name : 'Group B';
+      }
+
+      // Re-check draw button validity
+      updateDrawButton();
+
+      // If showing result, re-check draw-again availability
+      if (stepResult.classList.contains('active')) {
+        const available = getAvailablePrizes(state, selectedPool);
+        drawAgainBtn.style.display = (state.isOpen && available.length > 0) ? 'inline-flex' : 'none';
+      }
+    }
+
+    lotteryStore.subscribe(onStateChange);
+
+    // Initial render
+    onStateChange(lotteryStore.getState());
+  </script>
+</body>
+</html>

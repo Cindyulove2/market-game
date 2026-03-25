@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lucky Draw — Projector Display</title>
+  <link rel="stylesheet" href="css/lottery.css">
+  <style>
+    body {
+      overflow-x: hidden;
+      background: var(--bg);
+    }
+
+    .display-container {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      padding: 28px 40px;
+    }
+
+    /* Title — bigger and more dramatic for projection */
+    .display-title {
+      font-size: 4rem;
+      letter-spacing: 6px;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+      text-shadow: 0 0 40px rgba(251, 191, 36, 0.25);
+    }
+
+    /* Latest draw — oversized for projection */
+    .latest-draw {
+      min-height: 180px;
+      padding: 40px 32px;
+      position: relative;
+      overflow: hidden;
+      transition: box-shadow 0.4s;
+    }
+    .latest-draw .ld-name {
+      font-size: 2.8rem;
+    }
+    .latest-draw .ld-prize {
+      font-size: 3.6rem;
+      text-shadow: 0 0 30px rgba(251, 191, 36, 0.4);
+    }
+    .latest-draw .ld-pool {
+      font-size: 1.2rem;
+      margin-top: 8px;
+    }
+    .latest-draw .ld-label {
+      font-size: 1.1rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+    .latest-draw .waiting-msg {
+      color: var(--text-dim);
+      font-size: 1.5rem;
+      font-style: italic;
+    }
+
+    /* Celebration burst animation */
+    .latest-draw.celebrating {
+      animation: glowPulse 0.8s ease-in-out, celebrateBorder 1.2s ease-in-out;
+    }
+    @keyframes celebrateBorder {
+      0%   { border-color: var(--gold); }
+      25%  { border-color: var(--pink); }
+      50%  { border-color: var(--cyan); }
+      75%  { border-color: var(--gold); }
+      100% { border-color: var(--gold); }
+    }
+
+    /* Scale-in for result content */
+    .result-reveal {
+      animation: resultPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    @keyframes resultPop {
+      0%   { transform: scale(0.3); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    /* Continuous glow pulse for the prize text */
+    .prize-glow {
+      animation: prizeShine 2s ease-in-out infinite alternate;
+    }
+    @keyframes prizeShine {
+      0%   { text-shadow: 0 0 20px rgba(251, 191, 36, 0.3); }
+      100% { text-shadow: 0 0 50px rgba(251, 191, 36, 0.7), 0 0 80px rgba(251, 191, 36, 0.3); }
+    }
+
+    /* Pool columns — bigger text for projection */
+    .pools-display {
+      gap: 32px;
+      margin-bottom: 20px;
+    }
+    .pool-display-card {
+      padding: 28px;
+    }
+    .pool-display-card h2 {
+      font-size: 1.8rem;
+      letter-spacing: 1px;
+      margin-bottom: 18px;
+    }
+    .pool-display-card.pool-A {
+      border-color: rgba(59, 130, 246, 0.3);
+    }
+    .pool-display-card.pool-B {
+      border-color: rgba(168, 85, 247, 0.3);
+    }
+    .prize-list-item {
+      font-size: 1.15rem;
+      padding: 10px 16px;
+      margin-bottom: 6px;
+    }
+    .prize-list-item .p-remaining {
+      white-space: nowrap;
+    }
+    .prize-list-item.depleted {
+      opacity: 0.45;
+    }
+    .prize-list-item.depleted .p-name {
+      text-decoration: line-through;
+    }
+
+    /* History section */
+    .history-section {
+      flex: 1;
+      min-height: 0;
+    }
+    .history-list {
+      max-height: 340px;
+      padding: 20px 24px;
+    }
+    .history-list h3 {
+      font-size: 1.2rem;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    .draw-item {
+      font-size: 1.05rem;
+      padding: 10px 16px;
+    }
+    .draw-item .name {
+      font-size: 1.1rem;
+    }
+    .draw-item .prize {
+      font-size: 1.1rem;
+    }
+
+    /* Confetti particles container */
+    .confetti-container {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 999;
+      overflow: hidden;
+    }
+    .confetti-particle {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      top: -20px;
+      animation: confettiFall linear forwards;
+    }
+    @keyframes confettiFall {
+      0%   { transform: translateY(0) rotate(0deg); opacity: 1; }
+      80%  { opacity: 1; }
+      100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="confetti-container" id="confettiContainer"></div>
+
+  <div class="display-container">
+    <!-- Title -->
+    <div class="display-title">LUCKY DRAW</div>
+
+    <!-- Latest Draw Result -->
+    <div class="latest-draw" id="latestDraw">
+      <div class="waiting-msg" id="waitingMsg">Waiting for the first lucky draw...</div>
+      <div id="resultContent" style="display:none;">
+        <div class="ld-label">Latest Winner</div>
+        <div class="ld-name" id="ldName"></div>
+        <div class="ld-prize prize-glow" id="ldPrize"></div>
+        <div class="ld-pool" id="ldPool"></div>
+      </div>
+    </div>
+
+    <!-- Prize Pool Columns -->
+    <div class="pools-display" id="poolsDisplay">
+      <div class="pool-display-card pool-A" id="poolCardA">
+        <h2 id="poolNameA">Group A</h2>
+        <div id="poolPrizesA"></div>
+      </div>
+      <div class="pool-display-card pool-B" id="poolCardB">
+        <h2 id="poolNameB">Group B</h2>
+        <div id="poolPrizesB"></div>
+      </div>
+    </div>
+
+    <!-- Draw History -->
+    <div class="history-section">
+      <div class="history-list" id="historyList">
+        <h3>Draw History</h3>
+        <div id="historyItems"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+  <script>
+    firebase.initializeApp({
+      apiKey: "AIzaSyDXmYEzKySF2Zs2L6cuNa_YNE03YYlkLV0",
+      authDomain: "market-simulation-8cd65.firebaseapp.com",
+      databaseURL: "https://market-simulation-8cd65-default-rtdb.firebaseio.com",
+      projectId: "market-simulation-8cd65",
+      storageBucket: "market-simulation-8cd65.firebasestorage.app",
+      messagingSenderId: "284208038757",
+      appId: "1:284208038757:web:abea222f4b87921dde178c"
+    });
+  </script>
+  <script src="js/lottery-store.js"></script>
+
+  <script>
+    // ============================================================
+    // Display page — purely reactive, never writes to store
+    // ============================================================
+
+    const MAX_HISTORY = 20;
+    let lastShowResult = null;
+
+    // --- Confetti effect ---
+    function spawnConfetti() {
+      const container = document.getElementById('confettiContainer');
+      const colors = ['#fbbf24', '#ec4899', '#3b82f6', '#22c55e', '#a855f7', '#06b6d4', '#ef4444', '#f59e0b'];
+      const count = 60;
+      for (let i = 0; i < count; i++) {
+        const p = document.createElement('div');
+        p.className = 'confetti-particle';
+        p.style.left = Math.random() * 100 + '%';
+        p.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+        p.style.width = (6 + Math.random() * 8) + 'px';
+        p.style.height = (6 + Math.random() * 8) + 'px';
+        p.style.animationDuration = (1.5 + Math.random() * 2) + 's';
+        p.style.animationDelay = (Math.random() * 0.8) + 's';
+        container.appendChild(p);
+      }
+      setTimeout(() => { container.innerHTML = ''; }, 4000);
+    }
+
+    // --- Detect if showResult changed ---
+    function isNewResult(current) {
+      if (!current) return false;
+      if (!lastShowResult) return true;
+      return (
+        current.studentName !== lastShowResult.studentName ||
+        current.prize !== lastShowResult.prize ||
+        current.pool !== lastShowResult.pool ||
+        current.timestamp !== lastShowResult.timestamp
+      );
+    }
+
+    // --- Render latest draw ---
+    function renderLatestDraw(showResult) {
+      const box = document.getElementById('latestDraw');
+      const waiting = document.getElementById('waitingMsg');
+      const content = document.getElementById('resultContent');
+
+      if (!showResult) {
+        waiting.style.display = '';
+        content.style.display = 'none';
+        box.classList.remove('celebrating');
+        return;
+      }
+
+      const isNew = isNewResult(showResult);
+
+      waiting.style.display = 'none';
+      content.style.display = '';
+
+      document.getElementById('ldName').textContent = showResult.studentName;
+      document.getElementById('ldPrize').textContent = showResult.prize;
+
+      const poolLabel = showResult.pool === 'A' ? 'Group A' : showResult.pool === 'B' ? 'Group B' : showResult.pool;
+      document.getElementById('ldPool').textContent = poolLabel;
+
+      if (isNew) {
+        // Trigger celebration animation
+        box.classList.remove('celebrating');
+        content.classList.remove('result-reveal');
+        // Force reflow to restart animation
+        void box.offsetWidth;
+        box.classList.add('celebrating');
+        content.classList.add('result-reveal');
+        spawnConfetti();
+        // Remove animation class after it ends so it can re-trigger
+        setTimeout(() => {
+          box.classList.remove('celebrating');
+          content.classList.remove('result-reveal');
+        }, 1500);
+      }
+
+      lastShowResult = { ...showResult };
+    }
+
+    // --- Render prize pools ---
+    function renderPools(pools) {
+      if (!pools) return;
+
+      for (const key of ['A', 'B']) {
+        const pool = pools[key];
+        if (!pool) continue;
+
+        document.getElementById('poolName' + key).textContent = pool.name || ('Group ' + key);
+        const container = document.getElementById('poolPrizes' + key);
+        const prizes = pool.prizes || [];
+
+        if (prizes.length === 0) {
+          container.innerHTML = '<div style="color:var(--text-dim); padding:12px;">No prizes configured</div>';
+          continue;
+        }
+
+        let html = '';
+        for (const p of prizes) {
+          const remaining = (p.qty || 0) - (p.claimed || 0);
+          const isDepleted = remaining <= 0;
+          html += '<div class="prize-list-item' + (isDepleted ? ' depleted' : '') + '">';
+          html += '<span class="p-name' + (isDepleted ? ' p-gone' : '') + '">' + escHtml(p.name) + '</span>';
+          if (isDepleted) {
+            html += '<span class="p-remaining p-gone">All claimed!</span>';
+          } else {
+            html += '<span class="p-remaining">' + remaining + ' remaining</span>';
+          }
+          html += '</div>';
+        }
+        container.innerHTML = html;
+      }
+    }
+
+    // --- Render draw history ---
+    function renderHistory(draws) {
+      const container = document.getElementById('historyItems');
+      if (!draws || draws.length === 0) {
+        container.innerHTML = '<div style="color:var(--text-dim); text-align:center; padding:16px;">No draws yet</div>';
+        return;
+      }
+
+      // Newest first, limit to MAX_HISTORY
+      const sorted = [...draws].reverse().slice(0, MAX_HISTORY);
+      let html = '';
+      for (const d of sorted) {
+        const poolClass = d.pool === 'A' ? 'pool-tag-A' : d.pool === 'B' ? 'pool-tag-B' : '';
+        html += '<div class="draw-item">';
+        html += '<span class="name">' + escHtml(d.studentName) + '</span>';
+        html += '<span class="prize">' + escHtml(d.prize) + '</span>';
+        html += '<span class="pool-tag ' + poolClass + '">' + escHtml(d.pool) + '</span>';
+        html += '</div>';
+      }
+      container.innerHTML = html;
+    }
+
+    // --- Utility ---
+    function escHtml(str) {
+      if (!str) return '';
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    // --- Main render ---
+    function render(state) {
+      if (!state) return;
+      renderLatestDraw(state.showResult);
+      renderPools(state.pools);
+      renderHistory(state.draws || []);
+    }
+
+    // --- Subscribe and initial render ---
+    lotteryStore.subscribe(render);
+    render(lotteryStore.getState());
+  </script>
+</body>
+</html>
