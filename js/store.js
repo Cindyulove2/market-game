@@ -101,29 +101,23 @@ class GameStore {
     }
   }
 
-  // Immediate write for critical state changes (phase transitions, order submissions)
-  _firebaseWriteNow(data) {
-    if (this._writeTimer) {
-      clearTimeout(this._writeTimer);
-      this._writeTimer = null;
-    }
-    this._pendingWrite = null;
-    if (this._dbRef) this._dbRef.set(data);
-  }
-
   setState(updates, immediate) {
     const current = this.getState();
     const next = { ...current, ...updates };
     this._cache = next;
     localStorage.setItem(STORE_KEY, JSON.stringify(next));
 
-    if (this._useFirebase) {
+    if (this._useFirebase && this._dbRef) {
+      // Always use update() to avoid overwriting concurrent changes from other devices.
+      // update() merges at the top level, so only the changed keys are written.
+      const clean = JSON.parse(JSON.stringify(updates));
       if (immediate) {
-        this._firebaseWriteNow(next);
+        // Cancel any pending debounced writes
+        if (this._writeTimer) { clearTimeout(this._writeTimer); this._writeTimer = null; }
+        this._pendingUpdates = null;
+        this._dbRef.update(clean).catch(function(err) { console.error('[Store] Firebase update failed:', err); });
       } else {
-        // Use update() for partial writes (e.g. timer ticks) to avoid overwriting
-        // concurrent writes from other devices
-        this._firebaseUpdate(updates);
+        this._firebaseUpdate(clean);
       }
     } else {
       if (this._channel) this._channel.postMessage({ type: 'stateUpdate' });
@@ -144,9 +138,15 @@ class GameStore {
     this._cache = state;
     localStorage.setItem(STORE_KEY, JSON.stringify(state));
 
-    if (this._useFirebase) {
-      // Order submissions are critical — write immediately
-      this._firebaseWriteNow(state);
+    if (this._useFirebase && this._dbRef) {
+      // Order submissions: write the parent object that changed
+      if (this._writeTimer) { clearTimeout(this._writeTimer); this._writeTimer = null; }
+      this._pendingUpdates = null;
+      // Build the top-level key to update (e.g., 'orders' for path 'orders.group1')
+      const topKey = keys[0];
+      const updateObj = {};
+      updateObj[topKey] = JSON.parse(JSON.stringify(state[topKey]));
+      this._dbRef.update(updateObj).catch(function(err) { console.error('[Store] Firebase merge failed:', err); });
     } else {
       if (this._channel) this._channel.postMessage({ type: 'stateUpdate' });
     }
@@ -172,8 +172,12 @@ class GameStore {
     this._cache = initial;
     localStorage.setItem(STORE_KEY, JSON.stringify(initial));
 
-    if (this._useFirebase) {
-      this._firebaseWriteNow(initial);
+    if (this._useFirebase && this._dbRef) {
+      if (this._writeTimer) { clearTimeout(this._writeTimer); this._writeTimer = null; }
+      this._pendingUpdates = null;
+      // Use set() for full reset — replaces entire state
+      const clean = JSON.parse(JSON.stringify(initial));
+      this._dbRef.set(clean).catch(function(err) { console.error('[Store] Firebase reset failed:', err); });
     } else {
       if (this._channel) this._channel.postMessage({ type: 'stateUpdate' });
     }
