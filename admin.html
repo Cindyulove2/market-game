@@ -255,6 +255,19 @@
   </div>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
+  firebase.initializeApp({
+    apiKey: "AIzaSyDXmYEzKySF2Zs2L6cuNa_YNE03YYlkLV0",
+    authDomain: "market-simulation-8cd65.firebaseapp.com",
+    databaseURL: "https://market-simulation-8cd65-default-rtdb.firebaseio.com",
+    projectId: "market-simulation-8cd65",
+    storageBucket: "market-simulation-8cd65.firebasestorage.app",
+    messagingSenderId: "284208038757",
+    appId: "1:284208038757:web:abea222f4b87921dde178c"
+  });
+</script>
 <script src="js/game.js"></script>
 <script src="js/store.js"></script>
 <script>
@@ -361,7 +374,7 @@ function startRound() {
     followTrendActive: false,
     followTrendEnd: null,
     followTrendPaused: false,
-  });
+  }, true);
 }
 
 function openOrdering() {
@@ -371,7 +384,7 @@ function openOrdering() {
     phase: 'ordering',
     timerSeconds: 60,
     timerRunning: false,
-  });
+  }, true);
   // Auto-start timer
   setTimeout(() => startTimer(), 100);
 }
@@ -408,7 +421,7 @@ function handleRunMatching() {
       }
     }
   }
-  store.setState({ orders });
+  store.setState({ orders }, true);
 
   // Check if retail chose follow-trend mode
   const retailOrder = orders.group3;
@@ -422,7 +435,7 @@ function handleRunMatching() {
       revealSubPhase: 'followTrend',
       followTrendActive: true,
       followTrendEnd: ftEnd,
-    });
+    }, true);
     startFollowTrendCountdown(ftEnd);
   } else {
     executeMatching();
@@ -487,7 +500,7 @@ function finishFollowTrend() {
     followTrendEnd: null,
     followTrendPaused: false,
     revealSubPhase: null,
-  });
+  }, true);
   executeMatching();
 }
 
@@ -553,7 +566,7 @@ function executeMatching() {
     pStarHistory,
     currentPrice: newPrice,
     allOrders,
-  });
+  }, true);
 }
 
 function nextRound() {
@@ -571,10 +584,10 @@ function nextRound() {
     followTrendActive: false,
     followTrendEnd: null,
     followTrendPaused: false,
-  });
+  }, true);
   // Immediately move to signal
   setTimeout(() => {
-    store.setState({ phase: 'signal' });
+    store.setState({ phase: 'signal' }, true);
   }, 100);
 }
 
@@ -589,7 +602,7 @@ function endGame() {
   store.setState({
     phase: 'results',
     portfolios,
-  });
+  }, true);
 }
 
 function confirmReset() {

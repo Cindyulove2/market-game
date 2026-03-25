@@ -1,41 +1,131 @@
 // ============================================================
-// store.js — State management with cross-tab sync
-// Uses localStorage + BroadcastChannel for real-time sync
+// store.js — State management with Firebase Realtime Database
+// Falls back to localStorage + BroadcastChannel if Firebase unavailable
 // ============================================================
 
 const STORE_KEY = 'marketgame_state';
-const CHANNEL_NAME = 'marketgame_sync';
+const FIREBASE_PATH = '/game/state';
 
 class GameStore {
   constructor() {
     this.listeners = [];
-    this.channel = new BroadcastChannel(CHANNEL_NAME);
-    this.channel.onmessage = (e) => {
-      if (e.data.type === 'stateUpdate') {
-        this._notify();
+    this._cache = null;
+    this._useFirebase = false;
+    this._dbRef = null;
+    this._ready = false;
+    this._readyCallbacks = [];
+    this._writeTimer = null;
+    this._pendingWrite = null;
+
+    // Try to initialize Firebase
+    if (typeof firebase !== 'undefined' && firebase.database) {
+      try {
+        this._dbRef = firebase.database().ref(FIREBASE_PATH);
+        this._useFirebase = true;
+
+        // Listen for remote changes
+        this._dbRef.on('value', (snapshot) => {
+          const val = snapshot.val();
+          if (val) {
+            this._cache = val;
+            localStorage.setItem(STORE_KEY, JSON.stringify(val));
+          } else if (!this._ready) {
+            // First load, no data in Firebase — initialize
+            const initial = createInitialState();
+            this._dbRef.set(initial);
+            this._cache = initial;
+            localStorage.setItem(STORE_KEY, JSON.stringify(initial));
+          }
+          if (!this._ready) {
+            this._ready = true;
+            this._readyCallbacks.forEach(fn => fn());
+            this._readyCallbacks = [];
+          }
+          this._notifyListeners();
+        });
+
+        console.log('[Store] Firebase connected');
+      } catch (e) {
+        console.warn('[Store] Firebase init failed, falling back to localStorage', e);
+        this._useFirebase = false;
       }
-    };
+    }
+
+    // Fallback: BroadcastChannel for same-device sync
+    if (!this._useFirebase) {
+      console.log('[Store] Using localStorage + BroadcastChannel');
+      this._channel = new BroadcastChannel('marketgame_sync');
+      this._channel.onmessage = (e) => {
+        if (e.data.type === 'stateUpdate') {
+          this._cache = null;
+          this._notifyListeners();
+        }
+      };
+      this._ready = true;
+    }
+  }
+
+  onReady(fn) {
+    if (this._ready) { fn(); return; }
+    this._readyCallbacks.push(fn);
   }
 
   getState() {
+    if (this._cache) return this._cache;
     const raw = localStorage.getItem(STORE_KEY);
-    if (!raw) {
-      const initial = createInitialState();
-      localStorage.setItem(STORE_KEY, JSON.stringify(initial));
-      return initial;
+    if (raw) {
+      this._cache = JSON.parse(raw);
+      return this._cache;
     }
-    return JSON.parse(raw);
+    const initial = createInitialState();
+    localStorage.setItem(STORE_KEY, JSON.stringify(initial));
+    this._cache = initial;
+    return initial;
   }
 
-  setState(updates) {
+  // Write to Firebase with debounce (batches rapid writes like timer ticks)
+  _firebaseWrite(data) {
+    this._pendingWrite = data;
+    if (!this._writeTimer) {
+      this._writeTimer = setTimeout(() => {
+        if (this._pendingWrite && this._dbRef) {
+          this._dbRef.set(this._pendingWrite);
+        }
+        this._pendingWrite = null;
+        this._writeTimer = null;
+      }, 150); // 150ms debounce — fast enough for UI, prevents flooding
+    }
+  }
+
+  // Immediate write for critical state changes (phase transitions, order submissions)
+  _firebaseWriteNow(data) {
+    if (this._writeTimer) {
+      clearTimeout(this._writeTimer);
+      this._writeTimer = null;
+    }
+    this._pendingWrite = null;
+    if (this._dbRef) this._dbRef.set(data);
+  }
+
+  setState(updates, immediate) {
     const current = this.getState();
     const next = { ...current, ...updates };
+    this._cache = next;
     localStorage.setItem(STORE_KEY, JSON.stringify(next));
-    this.channel.postMessage({ type: 'stateUpdate' });
-    this._notify();
+
+    if (this._useFirebase) {
+      if (immediate) {
+        this._firebaseWriteNow(next);
+      } else {
+        this._firebaseWrite(next);
+      }
+    } else {
+      if (this._channel) this._channel.postMessage({ type: 'stateUpdate' });
+    }
+    // Always notify locally for immediate responsiveness
+    this._notifyListeners();
   }
 
-  // Deep merge for nested objects like portfolios, orders
   mergeState(path, value) {
     const state = this.getState();
     const keys = path.split('.');
@@ -45,9 +135,16 @@ class GameStore {
       obj = obj[keys[i]];
     }
     obj[keys[keys.length - 1]] = value;
+    this._cache = state;
     localStorage.setItem(STORE_KEY, JSON.stringify(state));
-    this.channel.postMessage({ type: 'stateUpdate' });
-    this._notify();
+
+    if (this._useFirebase) {
+      // Order submissions are critical — write immediately
+      this._firebaseWriteNow(state);
+    } else {
+      if (this._channel) this._channel.postMessage({ type: 'stateUpdate' });
+    }
+    this._notifyListeners();
   }
 
   subscribe(fn) {
@@ -55,16 +152,24 @@ class GameStore {
     return () => { this.listeners = this.listeners.filter(l => l !== fn); };
   }
 
-  _notify() {
+  _notifyListeners() {
     const state = this.getState();
-    this.listeners.forEach(fn => fn(state));
+    this.listeners.forEach(fn => {
+      try { fn(state); } catch(e) { console.error('[Store] Listener error:', e); }
+    });
   }
 
   resetGame() {
     const initial = createInitialState();
+    this._cache = initial;
     localStorage.setItem(STORE_KEY, JSON.stringify(initial));
-    this.channel.postMessage({ type: 'stateUpdate' });
-    this._notify();
+
+    if (this._useFirebase) {
+      this._firebaseWriteNow(initial);
+    } else {
+      if (this._channel) this._channel.postMessage({ type: 'stateUpdate' });
+    }
+    this._notifyListeners();
   }
 }
 
