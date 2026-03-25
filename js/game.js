@@ -236,7 +236,9 @@ function settlePortfolio(portfolio, order, matchResult, role, D, previousPrice) 
     return p;
   }
 
-  const myTrades = trades.filter(t => t.buyer === order.groupId || t.seller === order.groupId);
+  // Coerce groupId to number — Firebase may return string after round-trip
+  const gid = Number(order.groupId);
+  const myTrades = trades.filter(t => Number(t.buyer) === gid || Number(t.seller) === gid);
 
   let cashChange = 0;
   let sharesChange = 0;
@@ -247,7 +249,7 @@ function settlePortfolio(portfolio, order, matchResult, role, D, previousPrice) 
   const isHedgeCover = (role === 'hedge' && order.isCover);
 
   myTrades.forEach(trade => {
-    if (trade.buyer === order.groupId) {
+    if (Number(trade.buyer) === gid) {
       cashChange -= trade.price * trade.qty;
       if (!isHedgeCover) sharesChange += trade.qty;
     } else {
@@ -258,15 +260,15 @@ function settlePortfolio(portfolio, order, matchResult, role, D, previousPrice) 
 
   // Growth fund bonus
   if (role === 'growth' && myTrades.length > 0) {
-    const bought = myTrades.some(t => t.buyer === order.groupId);
-    const sold = myTrades.some(t => t.seller === order.groupId);
+    const bought = myTrades.some(t => Number(t.buyer) === gid);
+    const sold = myTrades.some(t => Number(t.seller) === gid);
     if (bought && price > previousPrice) {
-      const buyTrades = myTrades.filter(t => t.buyer === order.groupId);
+      const buyTrades = myTrades.filter(t => Number(t.buyer) === gid);
       const buyProfit = buyTrades.reduce((s, t) => s + (price - t.price) * t.qty, 0);
       if (buyProfit > 0) cashChange += buyProfit * 0.3;
     }
     if (sold && price < previousPrice) {
-      const sellTrades = myTrades.filter(t => t.seller === order.groupId);
+      const sellTrades = myTrades.filter(t => Number(t.seller) === gid);
       const sellProfit = sellTrades.reduce((s, t) => s + (t.price - price) * t.qty, 0);
       if (sellProfit > 0) cashChange += sellProfit * 0.3;
     }
@@ -281,7 +283,7 @@ function settlePortfolio(portfolio, order, matchResult, role, D, previousPrice) 
   if (role === 'hedge') {
     if (order.isShort) {
       // Track how many shares were actually sold short (matched trades)
-      const shortFilled = myTrades.filter(t => t.seller === order.groupId)
+      const shortFilled = myTrades.filter(t => Number(t.seller) === gid)
                                    .reduce((s, t) => s + t.qty, 0);
       p.shortPosition += shortFilled;
       p.shortCostBasis = price;
