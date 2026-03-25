@@ -140,30 +140,8 @@ function runMatching(orders, currentPrice, D) {
   // Sort: sells ascending by price, then by submission time (earlier first) for same price
   sells.sort((a, b) => a.price - b.price || a.ts - b.ts);
 
-  // Determine best bid and best ask (ignoring market order sentinels)
-  const bestBid = buys.length > 0 ? (buys[0].isMarket ? null : buys[0].price) : null;
-  const bestAsk = sells.length > 0 ? (sells[0].isMarket ? null : sells[0].price) : null;
-
-  // Find first real (non-market) bid and ask for midpoint calculation
-  let realBestBid = null, realBestAsk = null;
-  for (let i = 0; i < buys.length; i++) { if (!buys[i].isMarket) { realBestBid = buys[i].price; break; } }
-  for (let i = 0; i < sells.length; i++) { if (!sells[i].isMarket) { realBestAsk = sells[i].price; break; } }
-
-  // Compute the single clearing price: midpoint of best bid and best ask
-  // Fallback rules for edge cases
-  let midPrice;
-  if (realBestBid !== null && realBestAsk !== null) {
-    midPrice = Math.round((realBestBid + realBestAsk) / 2 * 10) / 10;
-  } else if (realBestBid !== null) {
-    midPrice = realBestBid;
-  } else if (realBestAsk !== null) {
-    midPrice = realBestAsk;
-  } else {
-    midPrice = currentPrice; // all market orders, use current price
-  }
-
   // Match orders: pairs execute if buy price >= sell price
-  // All trades execute at the single midPrice
+  // Price per trade: market+market=currentPrice, market+limit=limit price, limit+limit=midpoint
   let trades = [];
   let bi = 0, si = 0;
 
@@ -172,10 +150,22 @@ function runMatching(orders, currentPrice, D) {
     const sell = sells[si];
 
     if (buy.price >= sell.price) {
+      let execPrice;
+      if (buy.isMarket && sell.isMarket) {
+        execPrice = currentPrice;
+      } else if (buy.isMarket) {
+        execPrice = sell.price;
+      } else if (sell.isMarket) {
+        execPrice = buy.price;
+      } else {
+        execPrice = (buy.price + sell.price) / 2;
+      }
+      execPrice = Math.round(execPrice * 10) / 10;
+
       const qty = Math.min(buy.qty, sell.qty);
       trades.push({
         buyer: buy.groupId, seller: sell.groupId,
-        price: midPrice, qty,
+        price: execPrice, qty,
         buyerIsMarket: buy.isMarket, sellerIsMarket: sell.isMarket
       });
       buys[bi] = { ...buy, qty: buy.qty - qty };
@@ -192,11 +182,13 @@ function runMatching(orders, currentPrice, D) {
   let noTrade = false;
 
   if (trades.length > 0) {
-    clearingPrice = midPrice;
+    clearingPrice = trades[trades.length - 1].price;
   } else {
     noTrade = true;
-    const hBid = realBestBid !== null ? realBestBid : currentPrice * 0.7;
-    const lAsk = realBestAsk !== null ? realBestAsk : currentPrice * 1.3;
+    const realBuys = buys.filter(b => !b.isMarket && b.qty > 0);
+    const realSells = sells.filter(s => !s.isMarket && s.qty > 0);
+    const hBid = realBuys.length > 0 ? realBuys[0].price : currentPrice * 0.7;
+    const lAsk = realSells.length > 0 ? realSells[0].price : currentPrice * 1.3;
     referencePrice = Math.round((hBid + lAsk) / 2 * 10) / 10;
   }
 
