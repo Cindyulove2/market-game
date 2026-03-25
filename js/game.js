@@ -443,25 +443,31 @@ function computeSpecialAwards(state) {
   }
   if (shillerGroup) awards.push({ icon: '🌊', title: 'Shiller Award', group: shillerGroup, detail: `Deviated ${maxDevR3.toFixed(1)} from P* in Round 3` });
 
-  // Best Liquidity Provider (Market Maker): total spread income
+  // Best Liquidity Provider (Market Maker): only if profitable
   const mmPortfolio = state.portfolios.group5;
   if (mmPortfolio) {
     const spreadIncome = mmPortfolio.cash - 1500 + (mmPortfolio.shares * state.currentPrice);
-    awards.push({ icon: '🏦', title: 'Best Liquidity Provider', group: 5, detail: `Spread income: ${spreadIncome.toFixed(1)}` });
+    if (spreadIncome > 0) {
+      awards.push({ icon: '🏦', title: 'Best Liquidity Provider', group: 5, detail: `Spread income: ${spreadIncome.toFixed(1)}` });
+    }
   }
 
-  // Best Opportunity Spotter (Hedge Fund): total P&L from all trades
+  // Best Opportunity Spotter (Hedge Fund): only if profitable
   const hedgePortfolio = state.portfolios.group2;
   if (hedgePortfolio) {
     const hedgePnL = hedgePortfolio.totalAssets - 1000;
-    awards.push({ icon: '🔍', title: 'Best Opportunity Spotter', group: 2, detail: `Net P&L: ${hedgePnL.toFixed(1)}` });
+    if (hedgePnL > 0) {
+      awards.push({ icon: '🔍', title: 'Best Opportunity Spotter', group: 2, detail: `Net P&L: ${hedgePnL.toFixed(1)}` });
+    }
   }
 
-  // Strongest Momentum (Growth Fund): total P&L from momentum bonus
+  // Strongest Momentum (Growth Fund): only if profitable
   const growthPortfolio = state.portfolios.group4;
   if (growthPortfolio) {
     const growthPnL = growthPortfolio.totalAssets - 1000;
-    awards.push({ icon: '🚀', title: 'Strongest Momentum', group: 4, detail: `Net P&L: ${growthPnL.toFixed(1)}` });
+    if (growthPnL > 0) {
+      awards.push({ icon: '🚀', title: 'Strongest Momentum', group: 4, detail: `Net P&L: ${growthPnL.toFixed(1)}` });
+    }
   }
 
   // Loudest Voice in Market (Retail): total volume traded across all rounds
