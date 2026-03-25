@@ -141,8 +141,22 @@ function runMatching(orders, currentPrice, D) {
   // Sort: sells ascending by price, then by submission time (earlier first) for same price
   sells.sort((a, b) => a.price - b.price || a.ts - b.ts);
 
+  // Compute this round's reference price from limit orders for market order execution
+  // = midpoint of best limit bid and best limit ask; fallback to one side or lastRound price
+  let roundRefPrice = currentPrice; // fallback: last round's market price
+  let bestLimitBid = null, bestLimitAsk = null;
+  for (let i = 0; i < buys.length; i++) { if (!buys[i].isMarket) { bestLimitBid = buys[i].price; break; } }
+  for (let i = 0; i < sells.length; i++) { if (!sells[i].isMarket) { bestLimitAsk = sells[i].price; break; } }
+  if (bestLimitBid !== null && bestLimitAsk !== null) {
+    roundRefPrice = Math.round((bestLimitBid + bestLimitAsk) / 2 * 10) / 10;
+  } else if (bestLimitBid !== null) {
+    roundRefPrice = bestLimitBid;
+  } else if (bestLimitAsk !== null) {
+    roundRefPrice = bestLimitAsk;
+  }
+
   // Match orders: pairs execute if buy price >= sell price
-  // Price per trade: market+market=currentPrice, market+limit=limit price, limit+limit=midpoint
+  // Market orders execute at this round's reference price derived from limit orders
   let trades = [];
   let bi = 0, si = 0;
 
@@ -153,7 +167,7 @@ function runMatching(orders, currentPrice, D) {
     if (buy.price >= sell.price) {
       let execPrice;
       if (buy.isMarket && sell.isMarket) {
-        execPrice = currentPrice;
+        execPrice = roundRefPrice;
       } else if (buy.isMarket) {
         execPrice = sell.price;
       } else if (sell.isMarket) {
