@@ -390,6 +390,7 @@ function openOrdering() {
 }
 
 function handleRunMatching() {
+  try {
   const state = store.getState();
   if (state.phase !== 'ordering') return;
 
@@ -440,6 +441,7 @@ function handleRunMatching() {
   } else {
     executeMatching();
   }
+  } catch(e) { alert('handleRunMatching error: ' + e.message + '\n' + e.stack); }
 }
 
 let ftPausedRemaining = 0; // seconds remaining when paused
@@ -505,6 +507,7 @@ function finishFollowTrend() {
 }
 
 function executeMatching() {
+  try {
   const state = store.getState();
   const round = state.currentRound;
   const roundData = ROUNDS[round - 1];
@@ -525,26 +528,30 @@ function executeMatching() {
     const key = 'group' + g;
     const role = ROLES[g].id;
     const order = state.orders[key];
-    const currentPortfolio = { ...state.portfolios[key] };
+
+    // Defensive: ensure portfolio exists with defaults (Firebase may drop fields)
+    const defaultPortfolio = { cash: (g === 5 ? 1500 : 1000), shares: 0, shortPosition: 0, shortCostBasis: null, dividendAccumulated: 0, totalAssets: 1000, frozen: false };
+    const rawPortfolio = state.portfolios && state.portfolios[key] ? state.portfolios[key] : defaultPortfolio;
+    const currentPortfolio = { ...defaultPortfolio, ...rawPortfolio };
 
     const settled = settlePortfolio(currentPortfolio, order, matchResult, role, D, previousPrice);
     portfolios[key] = settled;
 
-    // Update asset history
-    const hist = [...(state.assetHistory[key] || [])];
+    // Update asset history (Firebase may drop empty arrays)
+    const hist = [...(state.assetHistory && state.assetHistory[key] ? state.assetHistory[key] : [])];
     hist.push(settled.totalAssets);
     assetHistory[key] = hist;
 
     // Update implied r history
-    const rHist = [...(state.impliedRHistory[key] || [])];
+    const rHist = [...(state.impliedRHistory && state.impliedRHistory[key] ? state.impliedRHistory[key] : [])];
     const ir = computeImpliedR(order, D);
     rHist.push(ir);
     impliedRHistory[key] = rHist;
   }
 
-  // Update price history
-  const priceHistory = [...state.priceHistory, newPrice];
-  const pStarHistory = [...state.pStarHistory, roundData.pStar];
+  // Update price history (Firebase may drop arrays)
+  const priceHistory = [...(state.priceHistory || [100]), newPrice];
+  const pStarHistory = [...(state.pStarHistory || [100]), roundData.pStar];
 
   // Store orders in allOrders for final results
   const allOrders = state.allOrders ? { ...state.allOrders } : {};
@@ -567,6 +574,7 @@ function executeMatching() {
     currentPrice: newPrice,
     allOrders,
   }, true);
+  } catch(e) { alert('executeMatching error: ' + e.message + '\n' + e.stack); }
 }
 
 function nextRound() {
