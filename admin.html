@@ -814,7 +814,7 @@ function renderOrders(state) {
         let details = [];
         if (order.retailMode === 'emotion') details.push('Emotion');
         if (order.retailMode === 'followtrend') details.push('Follow-trend');
-        if (order.emotionExtra) details.push('+1 share');
+        if (order.emotionExtra) details.push('Emotion active');
         if (order.followTrendActive) details.push('Trend active');
         if (order.isShort) details.push('SHORT');
         if (order.isCover) details.push('COVER');

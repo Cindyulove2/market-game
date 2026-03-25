@@ -766,7 +766,6 @@
           sells.push({ groupId: g, price: order.askPrice, qty: order.askQty, icon: getGroupIcon(g) });
         } else if (order.direction === 'buy') {
           let qty = order.quantity;
-          if (order.retailMode === 'emotion' && order.emotionExtra) qty += 1;
           buys.push({ groupId: g, price: order.price, qty: qty, icon: getGroupIcon(g) });
         } else if (order.direction === 'sell') {
           sells.push({ groupId: g, price: order.price, qty: order.quantity, icon: getGroupIcon(g) });

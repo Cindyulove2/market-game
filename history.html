@@ -330,7 +330,6 @@
       }
       if (order.direction === 'hold') return '-';
       let qty = order.quantity || 0;
-      if (order.retailMode === 'emotion' && order.emotionExtra) qty += 1;
       return qty;
     }
 

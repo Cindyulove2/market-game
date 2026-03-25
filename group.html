@@ -585,7 +585,7 @@
           html += myOrder.direction.toUpperCase();
           if (myOrder.direction !== 'hold') {
             html += ' ' + myOrder.quantity + ' shares @ ' + myOrder.price;
-            if (myOrder.emotionExtra) html += ' (+1 emotion share)';
+            if (myOrder.emotionExtra) html += ' (Emotion mode)';
           }
           if (myOrder.isShort) html += '<br>(Opening Short)';
           if (myOrder.isCover) html += '<br>(Covering Short)';
